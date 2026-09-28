@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Note Listener</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --panel: #ffffff;
+    --ink: #1d1d1f;
+    --muted: #6b6b70;
+    --line: #d9d7d0;
+    --accent: #2f6fdb;
+    --good: #1f9d55;
+    --warn: #d98a1f;
+    --bad: #d2463c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141416;
+      --panel: #1e1e22;
+      --ink: #ececef;
+      --muted: #9a9aa2;
+      --line: #36363c;
+      --accent: #6b9dff;
+      --good: #3ecf7a;
+      --warn: #f0a940;
+      --bad: #ff6b5f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+  main { width: 100%; max-width: 720px; display: flex; flex-direction: column; gap: 16px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 1.25rem; margin: 0; font-weight: 600; }
+  .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 0.9rem; color: var(--muted); }
+  .controls label { display: flex; align-items: center; gap: 6px; }
+  .controls input[type=number] {
+    width: 4.5em; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--panel); color: var(--ink); font: inherit;
+  }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button {
+    border: 0; background: var(--panel); color: var(--muted); padding: 4px 12px; font: inherit; cursor: pointer;
+  }
+  .seg button[aria-pressed=true] { background: var(--accent); color: #fff; }
+  button.start {
+    border: 0; border-radius: 10px; padding: 10px 18px; font: inherit; font-weight: 600;
+    background: var(--accent); color: #fff; cursor: pointer;
+  }
+  button.start.listening { background: var(--bad); }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px;
+  }
+  .display { display: grid; grid-template-columns: 1fr 1.3fr; gap: 20px; align-items: center; }
+  @media (max-width: 560px) { .display { grid-template-columns: 1fr; } }
+  .name { text-align: center; transition: opacity 0.3s; }
+  .name.stale { opacity: 0.35; }
+  .letter { font-size: clamp(5rem, 22vw, 8.5rem); font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
+  .letter .acc { font-family: "Noto Music", system-ui, sans-serif; font-size: 0.6em; font-weight: 400; vertical-align: 0.55em; }
+  .letter .primes { font-size: 0.6em; font-weight: 600; vertical-align: 0.55em; letter-spacing: 0.02em; }
+  .letter sub { font-size: 0.35em; font-weight: 500; color: var(--muted); vertical-align: baseline; margin-left: 0.05em; }
+  .letter.chord { font-size: clamp(3.2rem, 14vw, 5.5rem); }
+  .letter .qual { font-size: 0.5em; font-weight: 600; margin-left: 0.04em; }
+  .letter .bass { font-size: 0.5em; font-weight: 500; color: var(--muted); }
+  .alt { color: var(--muted); min-height: 1.4em; }
+  .freq { color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 4px; }
+  svg.staff { width: 100%; height: auto; max-height: 340px; display: block; transition: opacity 0.3s; }
+  svg.staff.stale { opacity: 0.35; }
+  .staff .l { stroke: var(--ink); stroke-width: 1.2; }
+  .staff .glyph { fill: var(--ink); font-family: "Noto Music", "Bravura", "Segoe UI Symbol", "Apple Symbols", serif; }
+  .staff .head { fill: none; stroke: var(--ink); stroke-width: 2.6; }
+  .staff .small { fill: var(--muted); font: italic 600 12px system-ui, sans-serif; }
+
+  .meter { position: relative; height: 34px; margin-top: 6px; }
+  .meter .track { position: absolute; left: 0; right: 0; top: 14px; height: 6px; border-radius: 3px; background: var(--line); }
+  .meter .zone { position: absolute; top: 12px; height: 10px; left: 45%; width: 10%; border-radius: 3px; background: var(--good); opacity: 0.25; }
+  .meter .tick { position: absolute; top: 8px; width: 1px; height: 18px; background: var(--muted); }
+  .meter .needle {
+    position: absolute; top: 4px; width: 4px; height: 26px; margin-left: -2px; border-radius: 2px;
+    background: var(--muted); left: 50%; transition: left 0.08s linear, background 0.2s;
+  }
+  .meter-labels { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .cents { text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .history { display: flex; gap: 6px; flex-wrap: wrap; min-height: 32px; }
+  .history span {
+    padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); font-size: 0.9rem;
+  }
+  .history span:first-child { border-color: var(--accent); color: var(--accent); }
+  .card h2 { font-size: 1rem; margin: 0 0 4px; font-weight: 600; }
+  .card .sub { color: var(--muted); font-size: 0.85rem; margin: 0 0 12px; }
+  svg.maccann { width: 100%; height: auto; display: block; transition: opacity 0.3s; }
+  svg.maccann.stale { opacity: 0.45; }
+  .maccann .btn circle { fill: var(--panel); stroke: var(--muted); stroke-width: 2; }
+  .maccann .btn.accidental circle { fill: var(--line); }
+  .maccann .btn text { fill: var(--ink); font: 600 17px system-ui, sans-serif; text-anchor: middle; dominant-baseline: central; }
+  .maccann .btn.on circle { fill: var(--accent); stroke: var(--accent); }
+  .maccann .btn.on text { fill: #fff; }
+  .maccann .hand { fill: var(--muted); font: 600 20px system-ui, sans-serif; text-anchor: middle; }
+  .maccann .hint { fill: var(--muted); font: 16px system-ui, sans-serif; text-anchor: middle; }
+  .status { color: var(--muted); font-size: 0.9rem; min-height: 1.3em; }
+  .level { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+  .level div { height: 100%; width: 0; background: var(--accent); transition: width 0.05s linear; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Note Listener</h1>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Accidentals">
+        <button id="btnSharp" aria-pressed="true">Sharps ♯</button>
+        <button id="btnFlat" aria-pressed="false">Flats ♭</button>
+      </div>
+      <div class="seg" role="group" aria-label="Octave notation">
+        <button id="btnHelm" aria-pressed="true" title="Helmholtz: c' = eingestrichenes c">c'</button>
+        <button id="btnSci" aria-pressed="false" title="Scientific: C4 = middle C">C4</button>
+      </div>
+      <label>A4 = <input id="a4" type="number" min="400" max="480" step="1" value="440"> Hz</label>
+      <button id="start" class="start">Start listening</button>
+    </div>
+  </header>
+
+  <section class="card">
+    <div class="display">
+      <div class="name stale" id="nameBox">
+        <div class="letter" id="letter">–</div>
+        <div class="alt" id="alt"></div>
+        <div class="freq" id="freq">&nbsp;</div>
+      </div>
+      <svg class="staff stale" id="staff" viewBox="0 0 300 310" aria-label="Notes on staff"></svg>
+    </div>
+
+    <div class="meter" aria-hidden="true">
+      <div class="track"></div>
+      <div class="zone"></div>
+      <div class="tick" style="left:0"></div>
+      <div class="tick" style="left:25%"></div>
+      <div class="tick" style="left:50%"></div>
+      <div class="tick" style="left:75%"></div>
+      <div class="tick" style="left:calc(100% - 1px)"></div>
+      <div class="needle" id="needle"></div>
+    </div>
+    <div class="meter-labels"><span>−50¢</span><span class="cents" id="cents">&nbsp;</span><span>+50¢</span></div>
+  </section>
+
+  <section class="card">
+    <h2>Maccann duet buttons</h2>
+    <p class="sub" id="maccannInfo">The 45 core buttons shared by almost every Maccann duet (46-button standard layout).</p>
+    <svg class="maccann stale" id="maccann" viewBox="0 0 880 410" aria-label="Maccann duet keyboard"></svg>
+  </section>
+
+  <div class="level"><div id="level"></div></div>
+  <div class="status" id="status">Press “Start listening” and allow microphone access.</div>
+  <div class="history" id="history"></div>
+</main>
+
+<script>
+(() => {
+  // ---------- note naming ----------
+  const LETTERS = 'CDEFGAB';
+  // [letter index, accidental] per pitch class
+  const SHARP_MAP = [[0,0],[0,1],[1,0],[1,1],[2,0],[3,0],[3,1],[4,0],[4,1],[5,0],[5,1],[6,0]];
+  const FLAT_MAP  = [[0,0],[1,-1],[1,0],[2,-1],[2,0],[3,0],[4,-1],[4,0],[5,-1],[5,0],[6,-1],[6,0]];
+  const ACC = { '-1': '♭', '0': '', '1': '♯' };
+
+  function spell(midi, flats) {
+    const pc = ((midi % 12) + 12) % 12;
+    const octave = Math.floor(midi / 12) - 1;
+    const [li, acc] = (flats ? FLAT_MAP : SHARP_MAP)[pc];
+    // Helmholtz / German octave names: c = kleine Oktave (C3), c' = eingestrichen (C4),
+    // c'' = zweigestrichen, C = große Oktave (C2), C₁ = Kontra, C₂ = Subkontra
+    const helmLetter = octave >= 3 ? LETTERS[li].toLowerCase() : LETTERS[li];
+    const primes = octave >= 4 ? "'".repeat(octave - 3) : '';
+    const sub = octave <= 1 ? '₀₁₂₃'[2 - octave] || '' : '';
+    return {
+      letter: LETTERS[li], letterIndex: li, acc, octave,
+      text: LETTERS[li] + ACC[acc] + octave,
+      helmLetter, primes, sub,
+      helmText: helmLetter + ACC[acc] + primes + sub,
+    };
+  }
+  const label = (sp, helm) => helm ? sp.helmText : sp.text;
+
+  // ---------- pitch detection (McLeod Pitch Method / NSDF) ----------
+  const MIN_FREQ = 40, MAX_FREQ = 4200;
+
+  function detectPitch(buf, sampleRate) {
+    const n = buf.length;
+    let rms = 0;
+    for (let i = 0; i < n; i++) rms += buf[i] * buf[i];
+    rms = Math.sqrt(rms / n);
+
+    const maxTau = Math.min(n >> 1, Math.floor(sampleRate / MIN_FREQ));
+    const minTau = Math.max(2, Math.floor(sampleRate / MAX_FREQ));
+    const nsdf = new Float32Array(maxTau + 1);
+    for (let tau = 0; tau <= maxTau; tau++) {
+      let acf = 0, m = 0;
+      for (let j = 0, end = n - tau; j < end; j++) {
+        const a = buf[j], b = buf[j + tau];
+        acf += a * b;
+        m += a * a + b * b;
+      }
+      nsdf[tau] = m > 0 ? (2 * acf) / m : 0;
+    }
+
+    // Collect the highest maximum between each pair of positive zero crossings,
+    // skipping the lobe around tau = 0.
+    const peaks = [];
+    let tau = 1;
+    while (tau < maxTau && nsdf[tau] > 0) tau++;
+    let curMax = -Infinity, curIdx = -1;
+    for (; tau < maxTau; tau++) {
+      if (nsdf[tau] > 0) {
+        if (nsdf[tau] > curMax && nsdf[tau] >= nsdf[tau - 1] && nsdf[tau] >= nsdf[tau + 1]) {
+          curMax = nsdf[tau]; curIdx = tau;
+        }
+      } else if (curIdx >= 0) {
+        peaks.push(curIdx); curMax = -Infinity; curIdx = -1;
+      }
+    }
+    if (curIdx >= 0) peaks.push(curIdx);
+    if (!peaks.length) return { rms, freq: 0, clarity: 0 };
+
+    let highest = 0;
+    for (const p of peaks) highest = Math.max(highest, nsdf[p]);
+    const p = peaks.find(i => i >= minTau && nsdf[i] >= 0.9 * highest);
+    if (p === undefined) return { rms, freq: 0, clarity: 0 };
+
+    // Parabolic interpolation around the chosen peak
+    const a = nsdf[p - 1], b = nsdf[p], c = nsdf[p + 1];
+    const denom = a - 2 * b + c;
+    const shift = denom !== 0 ? 0.5 * (a - c) / denom : 0;
+    return { rms, freq: sampleRate / (p + shift), clarity: b };
+  }
+
+  // ---------- polyphonic note detection (for chords) ----------
+  // Finds the sounding notes in a magnitude spectrum (dB, as from AnalyserNode). Working upwards,
+  // each note's expected overtones are subtracted so they aren't mistaken for notes themselves.
+  const POLY_LOW = 36, POLY_HIGH = 100;                  // C2 .. E7
+  // [semitones above the fundamental, how loud that overtone may be relative to the fundamental]
+  const OVERTONES = [[12, 2], [19, 1.5], [24, 0.8], [28, 0.5], [31, 0.4], [34, 0.3], [36, 0.25]];
+  const noteFreq = (m, a4) => a4 * Math.pow(2, (m - 69) / 12);
+
+  function detectNotes(db, sampleRate, fftSize, a4) {
+    const binHz = sampleRate / fftSize;
+    // Spectral peaks, each assigned to the nearest note if within 35 cents
+    const amp = new Float32Array(POLY_HIGH + 40);
+    const lo = Math.floor(noteFreq(POLY_LOW - 1, a4) / binHz);
+    const hi = Math.min(db.length - 2, Math.ceil(noteFreq(POLY_HIGH + 37, a4) / binHz));
+    for (let i = Math.max(1, lo); i <= hi; i++) {
+      if (db[i] <= db[i - 1] || db[i] < db[i + 1]) continue;
+      const denom = db[i - 1] - 2 * db[i] + db[i + 1];
+      const f = (i + (denom ? 0.5 * (db[i - 1] - db[i + 1]) / denom : 0)) * binHz;
+      const midiF = 69 + 12 * Math.log2(f / a4);
+      const m = Math.round(midiF);
+      if (Math.abs(midiF - m) > 0.35 || m < POLY_LOW || m >= amp.length) continue;
+      amp[m] = Math.max(amp[m], Math.pow(10, db[i] / 20));
+    }
+    let maxAmp = 0;
+    for (let m = POLY_LOW; m <= POLY_HIGH; m++) maxAmp = Math.max(maxAmp, amp[m]);
+    if (maxAmp <= 0) return [];
+
+    const residual = Float32Array.from(amp);
+    const notes = [];
+    for (let m = POLY_LOW; m <= POLY_HIGH; m++) {
+      if (amp[m] < 0.03 * maxAmp) continue;
+      // Every peak, even a weak one or one that is itself an overtone, explains the overtones above it
+      // (a reed's fundamental can be quieter than its harmonics).
+      for (const [iv, ratio] of OVERTONES) {
+        if (m + iv < residual.length) residual[m + iv] = Math.max(0, residual[m + iv] - amp[m] * ratio);
+      }
+      if (residual[m] >= 0.12 * maxAmp) notes.push({ midi: m, amp: residual[m] });
+    }
+    // Keep the strongest six, in pitch order
+    return notes.sort((a, b) => b.amp - a.amp).slice(0, 6).sort((a, b) => a.midi - b.midi);
+  }
+
+  const CHORD_TYPES = [
+    { suffix: '',     name: 'major',            iv: [0, 4, 7] },
+    { suffix: 'm',    name: 'minor',            iv: [0, 3, 7] },
+    { suffix: '7',    name: 'dominant 7th',     iv: [0, 4, 7, 10] },
+    { suffix: 'maj7', name: 'major 7th',        iv: [0, 4, 7, 11] },
+    { suffix: 'm7',   name: 'minor 7th',        iv: [0, 3, 7, 10] },
+    { suffix: '6',    name: 'major 6th',        iv: [0, 4, 7, 9] },
+    { suffix: 'm6',   name: 'minor 6th',        iv: [0, 3, 7, 9] },
+    { suffix: 'dim',  name: 'diminished',       iv: [0, 3, 6] },
+    { suffix: 'dim7', name: 'diminished 7th',   iv: [0, 3, 6, 9] },
+    { suffix: 'm7♭5', name: 'half-diminished',  iv: [0, 3, 6, 10] },
+    { suffix: 'aug',  name: 'augmented',        iv: [0, 4, 8] },
+    { suffix: 'sus4', name: 'suspended 4th',    iv: [0, 5, 7] },
+    { suffix: 'sus2', name: 'suspended 2nd',    iv: [0, 2, 7] },
+    { suffix: '7sus4', name: '7th suspended 4th', iv: [0, 5, 7, 10] },
+    { suffix: 'add9', name: 'added 9th',        iv: [0, 2, 4, 7] },
+  ];
+
+  // Best chord for a set of notes, or null. Allows one extra note, and a missing 5th in 4-note chords.
+  function identifyChord(midis) {
+    const pcs = new Set(midis.map(m => m % 12));
+    if (pcs.size < 3) return null;
+    const bass = midis[0] % 12;
+    let best = null;
+    for (const root of pcs) {
+      for (const type of CHORD_TYPES) {
+        const tpl = type.iv.map(i => (root + i) % 12);
+        const missing = tpl.filter(pc => !pcs.has(pc));
+        const extra = [...pcs].filter(pc => !tpl.includes(pc)).length;
+        const matched = tpl.length - missing.length;
+        if (matched < 3 || extra > 1) continue;
+        if (missing.length && !(tpl.length === 4 && missing.length === 1 && missing[0] === (root + 7) % 12)) continue;
+        const score = matched * 2 - extra * 1.5 - missing.length - (tpl.length - 3) * 0.1 + (root === bass ? 0.6 : 0);
+        if (!best || score > best.score) best = { root, type, bass, score };
+      }
+    }
+    if (!best) return null;
+    return { ...best, key: `${best.root}${best.type.suffix}/${best.bass}` };
+  }
+
+  // ---------- staff rendering ----------
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const staff = document.getElementById('staff');
+  const S = 12;                         // distance between staff lines
+  const TREBLE_BOTTOM = 140, BASS_BOTTOM = 248;
+  const X0 = 16, X1 = 284, NOTE_X = 204;
+
+  function el(name, attrs, text) {
+    const e = document.createElementNS(SVG_NS, name);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    staff.appendChild(e);
+    return e;
+  }
+
+  // Grand staff: notes from middle C up go on the treble staff, lower ones on the bass staff.
+  function drawStaff(midis, flats) {
+    staff.textContent = '';
+    for (const bottom of [TREBLE_BOTTOM, BASS_BOTTOM]) {
+      for (let i = 0; i < 5; i++) {
+        const y = bottom - i * S;
+        el('line', { class: 'l', x1: X0, x2: X1, y1: y, y2: y });
+      }
+    }
+    el('line', { class: 'l', x1: X0, x2: X0, y1: TREBLE_BOTTOM - 4 * S, y2: BASS_BOTTOM });
+    // G clef curls around the G line; F clef dots straddle the F line (glyph origin sits below it)
+    el('text', { class: 'glyph', x: X0 + 4, y: TREBLE_BOTTOM - S, 'font-size': 4 * S }, '𝄞');
+    el('text', { class: 'glyph', x: X0 + 4, y: BASS_BOTTOM - 8, 'font-size': 4 * S }, '𝄢');
+    if (!midis || !midis.length) return;
+
+    const notes = midis.map(midi => {
+      const treble = midi >= 60;
+      // Very high notes are written an octave lower with an 8va mark
+      const ottava = treble && midi >= 96;
+      const sp = spell(ottava ? midi - 12 : midi, flats);
+      const bottom = treble ? TREBLE_BOTTOM : BASS_BOTTOM;
+      const ref = treble ? 4 * 7 + 2 /* E4 */ : 2 * 7 + 4 /* G2 */;
+      const step = sp.octave * 7 + sp.letterIndex - ref;   // 0 = bottom line, 8 = top line
+      return { sp, bottom, step, ottava, y: bottom - step * (S / 2), x: NOTE_X };
+    });
+
+    for (const bottom of [TREBLE_BOTTOM, BASS_BOTTOM]) {
+      const group = notes.filter(n => n.bottom === bottom).sort((a, b) => a.step - b.step);
+      if (!group.length) continue;
+      // Seconds can't share a column: shift the upper note of each pair to the right
+      for (let i = 1; i < group.length; i++) {
+        if (group[i].step - group[i - 1].step === 1 && group[i - 1].x === NOTE_X) group[i].x = NOTE_X + 15;
+      }
+      const shifted = group.some(n => n.x !== NOTE_X);
+      const lx1 = NOTE_X - 13, lx2 = NOTE_X + 13 + (shifted ? 15 : 0);
+      const lo = group[0].step, hi = group[group.length - 1].step;
+      for (let st = -2; st >= lo; st -= 2) {
+        const ly = bottom - st * (S / 2);
+        el('line', { class: 'l', x1: lx1, x2: lx2, y1: ly, y2: ly });
+      }
+      for (let st = 10; st <= hi; st += 2) {
+        const ly = bottom - st * (S / 2);
+        el('line', { class: 'l', x1: lx1, x2: lx2, y1: ly, y2: ly });
+      }
+    }
+
+    // Whole-note heads
+    for (const n of notes) {
+      el('ellipse', { class: 'head', cx: n.x, cy: n.y, rx: 7.2, ry: 4.6, transform: `rotate(-22 ${n.x} ${n.y})` });
+    }
+
+    // Accidentals, from the top down, in the first column where they don't collide
+    const columns = [];
+    for (const n of notes.filter(n => n.sp.acc).sort((a, b) => a.y - b.y)) {
+      let c = 0;
+      while ((columns[c] || []).some(y => Math.abs(y - n.y) < 34)) c++;
+      (columns[c] = columns[c] || []).push(n.y);
+      el('text', { class: 'glyph', x: NOTE_X - 26 - c * 13, y: n.y, 'font-size': 4 * S }, ACC[n.sp.acc]);
+    }
+
+    const high = notes.filter(n => n.ottava);
+    if (high.length) {
+      const top = Math.min(...high.map(n => n.y), TREBLE_BOTTOM - 8 * S);
+      el('text', { class: 'small', x: NOTE_X - 12, y: top - 16 }, '8va');
+    }
+  }
+
+  // ---------- Maccann duet keyboard ----------
+  // Core 45 buttons of the 46-button Wheatstone "standard" Maccann, positions traced from
+  // Robert Gaskins, "How to Play Chords on Any MacCann Duet Concertina" (2001), p. 3.
+  // [x, y, note] in the chart's coordinates; the bottom of each hand is toward the hand rest.
+  const MACCANN = {
+    left: [
+      [50,163,'G#4'], [50,178.6,'C#4'], [50,194.3,'G#3'],
+      [66,157.9,'G4'], [66,173.4,'C4'], [66,189,'G3'], [66,204.6,'C3'],
+      [82,152.6,'B4'], [82,168.2,'E4'], [82,183.8,'A3'], [82,199.3,'E3'],
+      [98,163,'A4'], [98,178.6,'D4'], [98,194.3,'Eb4'],
+      [113,157.9,'C5'], [113,173.4,'F4'], [113,189,'B3'], [113,204.6,'F3'],
+      [128,173.4,'F#4'], [128,189,'Bb3'], [128,204.6,'F#3'],
+    ],
+    right: [
+      [175,178.6,'Eb6'], [175,194.3,'G#5'], [175,209.9,'C#5'], [175,225.5,'G#4'],
+      [191,173.4,'D6'], [191,189,'G5'], [191,204.6,'C5'], [191,220.2,'G4'],
+      [207,168.2,'E6'], [207,183.8,'B5'], [207,199.3,'E5'], [207,215,'A4'],
+      [222,163.4,'G6'], [222,178.6,'Bb5'], [222,194.3,'A5'], [222,209.9,'D5'], [222,225.5,'Eb5'],
+      [238,173.4,'F6'], [238,189,'C6'], [238,204.6,'F5'], [238,220.2,'B4'],
+      [253,178.6,'F#6'], [253,194.3,'C#6'], [253,209.9,'F#5'], [253,225.5,'Bb4'],
+    ],
+  };
+  const PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  const toMidi = n => {
+    const [, l, a, o] = n.match(/^([A-G])(#|b)?(\d)$/);
+    return 12 * (+o + 1) + PC[l] + (a === '#' ? 1 : a === 'b' ? -1 : 0);
+  };
+  const maccann = document.getElementById('maccann');
+  const maccannInfo = document.getElementById('maccannInfo');
+  const maccannButtons = [];
+
+  (function buildMaccann() {
+    const svgEl = (name, attrs, parent = maccann) => {
+      const e = document.createElementNS(SVG_NS, name);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      parent.appendChild(e);
+      return e;
+    };
+    const X = x => (x - 44) * 4 + 12, Y = y => (y - 146) * 4 + 44;
+    svgEl('text', { class: 'hand', x: X(89), y: 24 }).textContent = 'Left hand';
+    svgEl('text', { class: 'hand', x: X(214), y: 24 }).textContent = 'Right hand';
+    svgEl('text', { class: 'hint', x: 440, y: 402 }).textContent = '↓ hand rest';
+    for (const hand of ['left', 'right']) {
+      for (const [x, y, note] of MACCANN[hand]) {
+        const midi = toMidi(note);
+        const g = svgEl('g', { class: 'btn' + (note.length > 2 ? ' accidental' : '') });
+        svgEl('circle', { cx: X(x), cy: Y(y), r: 27 }, g);
+        const t = svgEl('text', { x: X(x), y: Y(y) }, g);
+        svgEl('title', {}, g);
+        maccannButtons.push({ midi, g, t, hand });
+      }
+    }
+  })();
+
+  function drawMaccann(midis) {
+    const wanted = new Set(midis || []);
+    const hands = new Map();
+    for (const b of maccannButtons) {
+      const sp = spell(b.midi, useFlats);
+      b.t.textContent = label(sp, useHelm);
+      b.g.querySelector('title').textContent = label(sp, !useHelm);
+      const on = wanted.has(b.midi);
+      b.g.classList.toggle('on', on);
+      if (on) hands.set(b.midi, [...(hands.get(b.midi) || []), b.hand]);
+    }
+    if (!midis || !midis.length) return;
+    const name = m => label(spell(m, useFlats), useHelm);
+    const missing = midis.filter(m => !hands.has(m));
+    const outOfRange = missing.length
+      ? `${missing.map(name).join(' ')} ${missing.length > 1 ? 'are' : 'is'} outside the 46-button Maccann range (c–g''' / C3–G6); larger instruments may have ${missing.length > 1 ? 'them' : 'it'}.`
+      : '';
+    if (midis.length === 1) {
+      const h = hands.get(midis[0]);
+      maccannInfo.textContent = h ? `${name(midis[0])}: ${h.length > 1 ? 'left and right hand' : h[0] + ' hand'}` : outOfRange;
+      return;
+    }
+    const where = midis.filter(m => hands.has(m))
+      .map(m => `${name(m)} (${hands.get(m).map(h => h[0].toUpperCase()).join('+')})`).join(' · ');
+    maccannInfo.textContent = [where, outOfRange].filter(Boolean).join(' — ');
+  }
+
+  // ---------- UI state ----------
+  const $ = id => document.getElementById(id);
+  const startBtn = $('start'), statusEl = $('status');
+  const letterEl = $('letter'), altEl = $('alt'), freqEl = $('freq'), nameBox = $('nameBox');
+  const needle = $('needle'), centsEl = $('cents'), levelEl = $('level'), historyEl = $('history');
+  const a4Input = $('a4');
+
+  let useFlats = false;
+  let useHelm = true;
+  let current = null;   // { type: 'note', midi } or { type: 'chord', chord, midis }
+
+  function setAccidentalMode(flats) {
+    useFlats = flats;
+    $('btnSharp').setAttribute('aria-pressed', String(!flats));
+    $('btnFlat').setAttribute('aria-pressed', String(flats));
+    render(current, true);
+    renderHistory();
+  }
+  function setOctaveMode(helm) {
+    useHelm = helm;
+    $('btnHelm').setAttribute('aria-pressed', String(helm));
+    $('btnSci').setAttribute('aria-pressed', String(!helm));
+    render(current, true);
+    renderHistory();
+  }
+  $('btnHelm').onclick = () => setOctaveMode(true);
+  $('btnSci').onclick = () => setOctaveMode(false);
+  $('btnSharp').onclick = () => setAccidentalMode(false);
+  $('btnFlat').onclick = () => setAccidentalMode(true);
+
+  const pcName = pc => { const sp = spell(pc + 60, useFlats); return sp.letter + ACC[sp.acc]; };
+  const chordName = c => pcName(c.root) + c.type.suffix + (c.bass !== c.root ? '/' + pcName(c.bass) : '');
+
+  function render(sound, keepStale) {
+    if (!sound) { drawStaff(null); drawMaccann(null); return; }
+    if (sound.type === 'note') {
+      const sp = spell(sound.midi, useFlats);
+      const other = spell(sound.midi, !useFlats);
+      const acc = sp.acc ? `<span class="acc">${ACC[sp.acc]}</span>` : '';
+      letterEl.classList.remove('chord');
+      letterEl.innerHTML = useHelm
+        ? `${sp.helmLetter}${acc}${sp.primes ? `<span class="primes">${sp.primes}</span>` : ''}${sp.sub ? `<sub>${sp.sub}</sub>` : ''}`
+        : `${sp.letter}${acc}<sub>${sp.octave}</sub>`;
+      const parts = [];
+      if (other.text !== sp.text) parts.push(`= ${label(other, useHelm)}`);
+      parts.push(label(sp, !useHelm));
+      altEl.textContent = parts.join(' · ');
+      drawStaff([sound.midi], useFlats);
+      drawMaccann([sound.midi]);
+    } else {
+      const { chord, midis } = sound;
+      const root = spell(chord.root + 60, useFlats);
+      letterEl.classList.add('chord');
+      letterEl.innerHTML = `${root.letter}${root.acc ? `<span class="acc">${ACC[root.acc]}</span>` : ''}` +
+        `<span class="qual">${chord.type.suffix}</span>` +
+        (chord.bass !== chord.root ? `<span class="bass">/${pcName(chord.bass)}</span>` : '');
+      altEl.textContent = `${pcName(chord.root)} ${chord.type.name} · ` +
+        midis.map(m => label(spell(m, useFlats), useHelm)).join(' ');
+      drawStaff(midis, useFlats);
+      drawMaccann(midis);
+    }
+    if (!keepStale) {
+      maccann.classList.remove('stale');
+      nameBox.classList.remove('stale');
+      staff.classList.remove('stale');
+    }
+  }
+
+  function setStale() {
+    nameBox.classList.add('stale');
+    staff.classList.add('stale');
+    maccann.classList.add('stale');
+    clearTuning();
+  }
+
+  function clearTuning() {
+    needle.style.background = 'var(--muted)';
+    needle.style.left = '50%';
+    centsEl.innerHTML = '&nbsp;';
+    freqEl.innerHTML = '&nbsp;';
+  }
+
+  function showTuning(freq, cents) {
+    freqEl.textContent = `${freq.toFixed(1)} Hz`;
+    const c = Math.max(-50, Math.min(50, cents));
+    needle.style.left = `${50 + c}%`;
+    const abs = Math.abs(cents);
+    needle.style.background = abs <= 5 ? 'var(--good)' : abs <= 15 ? 'var(--warn)' : 'var(--bad)';
+    centsEl.textContent = `${cents > 0 ? '+' : ''}${Math.round(cents)}¢`;
+  }
+
+  const history = [];
+  const soundKey = s => s.type === 'note' ? `n${s.midi}` : `c${s.chord.key}`;
+  function pushHistory(sound) {
+    if (history[0] && soundKey(history[0]) === soundKey(sound)) return;
+    history.unshift(sound);
+    if (history.length > 16) history.pop();
+    renderHistory();
+  }
+  function renderHistory() {
+    historyEl.textContent = '';
+    for (const h of history) {
+      const s = document.createElement('span');
+      s.textContent = h.type === 'note' ? label(spell(h.midi, useFlats), useHelm) : chordName(h.chord);
+      historyEl.appendChild(s);
+    }
+  }
+
+  drawStaff(null);
+  drawMaccann(null);
+
+  // ---------- audio ----------
+  let ctx = null, stream = null, analyser = null, fftAnalyser = null, rafId = 0;
+
+  async function start() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      statusEl.textContent = 'Microphone access is not available. Open this page over https:// or http://localhost.';
+      return;
+    }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+      });
+    } catch (err) {
+      statusEl.textContent = `Could not access microphone: ${err.message || err.name}`;
+      return;
+    }
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = ctx.createMediaStreamSource(stream);
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+    src.connect(analyser);
+    // Long window for chords: ~3 Hz resolution separates neighbouring low notes
+    fftAnalyser = ctx.createAnalyser();
+    fftAnalyser.fftSize = 16384;
+    fftAnalyser.smoothingTimeConstant = 0.5;
+    src.connect(fftAnalyser);
+    startBtn.textContent = 'Stop';
+    startBtn.classList.add('listening');
+    statusEl.textContent = 'Listening… play a note or chord.';
+    loop();
+  }
+
+  function stop() {
+    cancelAnimationFrame(rafId);
+    stream?.getTracks().forEach(t => t.stop());
+    ctx?.close();
+    ctx = stream = analyser = fftAnalyser = null;
+    startBtn.textContent = 'Start listening';
+    startBtn.classList.remove('listening');
+    levelEl.style.width = '0';
+    setStale();
+    statusEl.textContent = 'Stopped.';
+  }
+
+  startBtn.onclick = () => (ctx ? stop() : start());
+
+  // Detection smoothing
+  const RMS_GATE = 0.01, CLARITY_GATE = 0.85, SILENCE_FRAMES = 12;
+  const NOTE_CONFIRM = 3, CHORD_CONFIRM = 4;
+  // A clean single tone is very periodic; below this clarity we also look for chords
+  const CHORD_CLARITY_MAX = 0.97;
+  let candidateKey = null, candidateCount = 0, silentCount = 0;
+  const recentFreqs = [];
+
+  function confirm(key) {
+    if (key === candidateKey) return ++candidateCount;
+    candidateKey = key; candidateCount = 1; recentFreqs.length = 0;
+    return 1;
+  }
+
+  function show(sound) {
+    const changed = !current || soundKey(current) !== soundKey(sound) ||
+      (sound.type === 'chord' && sound.midis.join() !== current.midis.join());
+    if (changed || nameBox.classList.contains('stale')) {
+      if (!current || soundKey(current) !== soundKey(sound) || nameBox.classList.contains('stale')) pushHistory(sound);
+      current = sound;
+      render(sound);
+    }
+  }
+
+  function loop() {
+    const buf = new Float32Array(analyser.fftSize);
+    const spec = new Float32Array(fftAnalyser.frequencyBinCount);
+    const tick = () => {
+      analyser.getFloatTimeDomainData(buf);
+      const { rms, freq, clarity } = detectPitch(buf, ctx.sampleRate);
+      levelEl.style.width = `${Math.min(100, rms * 400)}%`;
+      const a4 = Number(a4Input.value) || 440;
+
+      let chord = null, midis = null;
+      if (rms >= RMS_GATE && clarity < CHORD_CLARITY_MAX) {
+        fftAnalyser.getFloatFrequencyData(spec);
+        midis = detectNotes(spec, ctx.sampleRate, fftAnalyser.fftSize, a4).map(n => n.midi);
+        chord = identifyChord(midis);
+      }
+
+      if (chord) {
+        silentCount = 0;
+        if (confirm('c' + chord.key) >= CHORD_CONFIRM) {
+          show({ type: 'chord', chord, midis });
+          clearTuning();
+          freqEl.textContent = 'Chord';
+        }
+      } else if (rms >= RMS_GATE && clarity >= CLARITY_GATE && freq > 0) {
+        silentCount = 0;
+        const midi = Math.round(69 + 12 * Math.log2(freq / a4));
+        confirm('n' + midi);
+        recentFreqs.push(freq);
+        if (recentFreqs.length > 5) recentFreqs.shift();
+        if (candidateCount >= NOTE_CONFIRM) {
+          show({ type: 'note', midi });
+          const med = [...recentFreqs].sort((x, y) => x - y)[recentFreqs.length >> 1];
+          showTuning(med, 1200 * Math.log2(med / noteFreq(midi, a4)));
+        }
+      } else if (++silentCount === SILENCE_FRAMES) {
+        candidateKey = null; candidateCount = 0;
+        setStale();
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    tick();
+  }
+
+  // Exposed for testing
+  window.__detectPitch = detectPitch;
+  window.__show = sound => { current = sound; render(sound); };
+  window.__identifyChord = identifyChord;
+})();
+</script>
+</body>
+</html>
