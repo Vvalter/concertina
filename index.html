@@ -7,45 +7,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="concertina.css?v=V4">
 <style>
-  :root {
-    --bg: #f6f5f1;
-    --panel: #ffffff;
-    --ink: #1d1d1f;
-    --muted: #6b6b70;
-    --line: #d9d7d0;
-    --accent: #2f6fdb;
-    --good: #1f9d55;
-    --warn: #d98a1f;
-    --bad: #d2463c;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #141416;
-      --panel: #1e1e22;
-      --ink: #ececef;
-      --muted: #9a9aa2;
-      --line: #36363c;
-      --accent: #6b9dff;
-      --good: #3ecf7a;
-      --warn: #f0a940;
-      --bad: #ff6b5f;
-    }
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    min-height: 100vh;
-    background: var(--bg);
-    color: var(--ink);
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    display: flex;
-    justify-content: center;
-    padding: 24px 16px;
-  }
-  main { width: 100%; max-width: 720px; display: flex; flex-direction: column; gap: 16px; }
-  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-  h1 { font-size: 1.25rem; margin: 0; font-weight: 600; }
+  a.nav { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
   .update {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     padding: 10px 14px; border-radius: 12px; background: var(--accent); color: #fff;
@@ -54,26 +18,6 @@
   .update button {
     border: 0; border-radius: 8px; padding: 6px 14px; font: inherit; font-weight: 600;
     background: #fff; color: var(--accent); cursor: pointer;
-  }
-  h1 .version { font-size: 0.75rem; font-weight: 600; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; vertical-align: middle; margin-left: 6px; }
-  .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 0.9rem; color: var(--muted); }
-  .controls label { display: flex; align-items: center; gap: 6px; }
-  .controls input[type=number] {
-    width: 4.5em; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px;
-    background: var(--panel); color: var(--ink); font: inherit;
-  }
-  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-  .seg button {
-    border: 0; background: var(--panel); color: var(--muted); padding: 4px 12px; font: inherit; cursor: pointer;
-  }
-  .seg button[aria-pressed=true] { background: var(--accent); color: #fff; }
-  button.start {
-    border: 0; border-radius: 10px; padding: 10px 18px; font: inherit; font-weight: 600;
-    background: var(--accent); color: #fff; cursor: pointer;
-  }
-  button.start.listening { background: var(--bad); }
-  .card {
-    background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px;
   }
   .display { display: grid; grid-template-columns: 1fr 1.3fr; gap: 20px; align-items: center; }
   @media (max-width: 560px) { .display { grid-template-columns: 1fr; } }
@@ -113,17 +57,6 @@
   .history span:first-child { border-color: var(--accent); color: var(--accent); }
   .card h2 { font-size: 1rem; margin: 0 0 4px; font-weight: 600; }
   .card .sub { color: var(--muted); font-size: 0.85rem; margin: 0 0 12px; }
-  svg.maccann { width: 100%; height: auto; display: block; transition: opacity 0.3s; }
-  svg.maccann.stale { opacity: 0.45; }
-  .maccann .btn circle { fill: var(--panel); stroke: var(--muted); stroke-width: 2; }
-  .maccann .btn.accidental circle { fill: var(--line); }
-  .maccann .btn text { fill: var(--ink); font: 600 17px system-ui, sans-serif; text-anchor: middle; dominant-baseline: central; }
-  .maccann .btn.on circle { fill: var(--accent); stroke: var(--accent); }
-  .maccann .btn.on text { fill: #fff; }
-  .maccann .hand { fill: var(--muted); font: 600 20px system-ui, sans-serif; text-anchor: middle; }
-  .maccann .air circle { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 4 3; }
-  .maccann .air text { fill: var(--muted); font: 600 12px system-ui, sans-serif; text-anchor: middle; dominant-baseline: central; }
-  .maccann .hint { fill: var(--muted); font: 16px system-ui, sans-serif; text-anchor: middle; }
   .practice-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 8px; font-size: 0.9rem; color: var(--muted); }
   .practice-bar select, .practice-bar button {
     padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); font: inherit;
@@ -134,13 +67,6 @@
   .practice-msg[hidden] { display: none; }
   .practice-msg.good { color: var(--good); }
   .practice-msg.bad { color: var(--bad); }
-  .maccann.playable .btn { cursor: pointer; -webkit-tap-highlight-color: transparent; }
-  .maccann.playable .btn:hover circle { stroke: var(--accent); }
-  .maccann .btn.fits circle { stroke: var(--accent); stroke-dasharray: 6 4; }
-  .maccann .btn.target circle { fill: color-mix(in srgb, var(--accent) 22%, var(--panel)); stroke: var(--accent); stroke-width: 5; }
-  .maccann .btn.good circle { fill: var(--good); stroke: var(--good); }
-  .maccann .btn.bad circle { fill: var(--bad); stroke: var(--bad); }
-  .maccann .btn.good text, .maccann .btn.bad text { fill: #fff; }
   .status { color: var(--muted); font-size: 0.9rem; min-height: 1.3em; }
   .level { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
   .level div { height: 100%; width: 0; background: var(--accent); transition: width 0.05s linear; }
@@ -153,7 +79,10 @@
     <button id="updateReload">Reload</button>
   </div>
   <header>
-    <h1>Note Listener <span class="version" id="version">V3</span></h1>
+    <div>
+      <h1>Note Listener <span class="version" id="version">V4</span></h1>
+      <a class="nav" href="song.html">♪ Song: Hänschen klein →</a>
+    </div>
     <div class="controls">
       <div class="seg" role="group" aria-label="Mode">
         <button id="btnListen" aria-pressed="true" title="Listen to the microphone">Microphone</button>
@@ -216,32 +145,10 @@
   <div class="history" id="history"></div>
 </main>
 
+<script src="concertina.js?v=V4"></script>
 <script>
 (() => {
-  // ---------- note naming ----------
-  const LETTERS = 'CDEFGAB';
-  // [letter index, accidental] per pitch class
-  const SHARP_MAP = [[0,0],[0,1],[1,0],[1,1],[2,0],[3,0],[3,1],[4,0],[4,1],[5,0],[5,1],[6,0]];
-  const FLAT_MAP  = [[0,0],[1,-1],[1,0],[2,-1],[2,0],[3,0],[4,-1],[4,0],[5,-1],[5,0],[6,-1],[6,0]];
-  const ACC = { '-1': '♭', '0': '', '1': '♯' };
-
-  function spell(midi, flats) {
-    const pc = ((midi % 12) + 12) % 12;
-    const octave = Math.floor(midi / 12) - 1;
-    const [li, acc] = (flats ? FLAT_MAP : SHARP_MAP)[pc];
-    // Helmholtz / German octave names: c = kleine Oktave (C3), c' = eingestrichen (C4),
-    // c'' = zweigestrichen, C = große Oktave (C2), C₁ = Kontra, C₂ = Subkontra
-    const helmLetter = octave >= 3 ? LETTERS[li].toLowerCase() : LETTERS[li];
-    const primes = octave >= 4 ? "'".repeat(octave - 3) : '';
-    const sub = octave <= 1 ? '₀₁₂₃'[2 - octave] || '' : '';
-    return {
-      letter: LETTERS[li], letterIndex: li, acc, octave,
-      text: LETTERS[li] + ACC[acc] + octave,
-      helmLetter, primes, sub,
-      helmText: helmLetter + ACC[acc] + primes + sub,
-    };
-  }
-  const label = (sp, helm) => helm ? sp.helmText : sp.text;
+  const { ACC, spell, label, buildMaccann, SAMPLE_FILES, sampleFor, loadLoop } = Concertina;
 
   // ---------- pitch detection (McLeod Pitch Method / NSDF) ----------
   const MIN_FREQ = 40, MAX_FREQ = 4200;
@@ -487,63 +394,10 @@
   }
 
   // ---------- Maccann duet keyboard ----------
-  // The owner's instrument: Lachenal Edeophone (Maccann system), 55 keys, Nr. 2570, traced from
-  // Lachenal_Edeophone_55key_Nr2570-3.pdf. [x, y, note] in the PDF's coordinates (points);
-  // the bottom of each hand is toward the hand rest. Chart octave marks: none = 4, ¹ = 5, ² = 6, ⁻¹ = 3.
-  const MACCANN = {
-    left: [
-      [66.6,314.1,'G#4'], [66.6,370.8,'C#4'], [66.6,427.5,'G#3'], [66.6,484.2,'C#3'],
-      [120.5,297.1,'G4'], [120.5,353.8,'C4'], [120.5,410.5,'G3'], [120.5,467.2,'C3'],
-      [174.3,280.1,'B4'], [174.3,336.8,'E4'], [174.3,393.5,'A3'], [174.3,450.2,'E3'], [174.3,506.9,'Eb3'],
-      [228.2,257.4,'Bb4'], [228.2,314.1,'A4'], [228.2,370.8,'D4'], [228.2,427.5,'Eb4'], [228.2,484.2,'D3'],
-      [282.0,297.1,'C5'], [282.0,353.8,'F4'], [282.0,410.5,'B3'], [282.0,467.2,'F3'],
-      [335.9,368.0,'F#4'], [335.9,424.7,'Bb3'], [335.9,481.4,'F#3'],
-    ],
-    right: [
-      [506.0,257.4,'Eb6'], [506.0,314.1,'G#5'], [506.0,370.8,'C#5'], [506.0,427.5,'G#4'], [506.0,484.2,'C#4'],
-      [559.8,240.4,'D6'], [559.8,297.1,'G5'], [559.8,353.8,'C5'], [559.8,410.5,'G4'], [559.8,467.2,'C4'],
-      [613.7,223.4,'E6'], [613.7,280.1,'B5'], [613.7,336.8,'E5'], [613.7,393.5,'A4'], [613.7,450.2,'E4'], [613.7,506.9,'Eb4'],
-      [667.6,257.4,'Bb5'], [667.6,314.1,'A5'], [667.6,370.8,'D5'], [667.6,427.5,'Eb5'], [667.6,484.2,'D4'],
-      [721.4,240.4,'F6'], [721.4,297.1,'C6'], [721.4,353.8,'F5'], [721.4,410.5,'B4'], [721.4,467.2,'F4'],
-      [775.3,311.3,'C#6'], [775.3,368.0,'F#5'], [775.3,424.7,'Bb4'], [775.3,481.4,'F#4'],
-    ],
-  };
-  const AIR_BUTTON = [452, 506.6];
-  const PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
-  const toMidi = n => {
-    const [, l, a, o] = n.match(/^([A-G])(#|b)?(\d)$/);
-    return 12 * (+o + 1) + PC[l] + (a === '#' ? 1 : a === 'b' ? -1 : 0);
-  };
   const maccann = document.getElementById('maccann');
   const maccannInfo = document.getElementById('maccannInfo');
-  const maccannButtons = [];
+  const maccannButtons = buildMaccann(maccann);
 
-  (function buildMaccann() {
-    const svgEl = (name, attrs, parent = maccann) => {
-      const e = document.createElementNS(SVG_NS, name);
-      for (const k in attrs) e.setAttribute(k, attrs[k]);
-      parent.appendChild(e);
-      return e;
-    };
-    const X = x => (x - 20) * 1.25, Y = y => (y - 200) * 1.25 + 60;
-    svgEl('text', { class: 'hand', x: X(201), y: 30 }).textContent = 'Left hand';
-    svgEl('text', { class: 'hand', x: X(641), y: 30 }).textContent = 'Right hand';
-    svgEl('text', { class: 'hint', x: X(201), y: 512 }).textContent = '↓ hand rest';
-    svgEl('text', { class: 'hint', x: X(641), y: 512 }).textContent = '↓ hand rest';
-    const air = svgEl('g', { class: 'air' });
-    svgEl('circle', { cx: X(AIR_BUTTON[0]), cy: Y(AIR_BUTTON[1]), r: 20 }, air);
-    svgEl('text', { x: X(AIR_BUTTON[0]), y: Y(AIR_BUTTON[1]) }, air).textContent = 'AIR';
-    for (const hand of ['left', 'right']) {
-      for (const [x, y, note] of MACCANN[hand]) {
-        const midi = toMidi(note);
-        const g = svgEl('g', { class: 'btn' + (note.length > 2 ? ' accidental' : '') });
-        svgEl('circle', { cx: X(x), cy: Y(y), r: 27 }, g);
-        const t = svgEl('text', { x: X(x), y: Y(y) }, g);
-        svgEl('title', {}, g);
-        maccannButtons.push({ midi, g, t, hand });
-      }
-    }
-  })();
 
   function rangeText() {
     const ms = maccannButtons.map(b => b.midi);
@@ -1011,103 +865,12 @@
   });
 
   // ---------- play mode: tap a button to hear it ----------
-  // One recording per button of the owner's Edeophone (samples/), named
-  // <links|rechts>_Spalte<column>_<row>_<note><octave: none = 4, 1 = 5, 2 = 6, -1 = 3>.
-  const SAMPLE_FILES = `links_Spalte1_1_C#-1 links_Spalte1_2_G#-1 links_Spalte1_3_C# links_Spalte1_4_G#
-    links_Spalte2_1_C-1 links_Spalte2_2_G-1 links_Spalte2_3_C links_Spalte2_4_G links_Spalte3_1_Eb-1
-    links_Spalte3_2_E-1 links_Spalte3_3_A-1 links_Spalte3_4_E links_Spalte3_5_B links_Spalte5_1_F-1
-    links_Spalte5_2_B-1 links_Spalte5_3_F links_Spalte5_4_C1 links_Spalte6_1_F#-1 links_Spalte6_2_Bb-1
-    links_Spalte6_3_F# rechts_Spalte1_1_C# rechts_Spalte1_2_G# rechts_Spalte1_3_C#1 rechts_Spalte1_4_G#1
-    rechts_Spalte1_5_Eb2 rechts_Spalte2_1_C rechts_Spalte2_2_G rechts_Spalte2_3_C1 rechts_Spalte2_4_G1
-    rechts_Spalte2_5_D2 rechts_Spalte3_1_Eb rechts_Spalte3_2_E rechts_Spalte3_3_A rechts_Spalte3_4_E1
-    rechts_Spalte3_5_B1 rechts_Spalte3_6_E2 rechts_Spalte4_1_D rechts_Spalte4_2_Eb1 rechts_Spalte4_3_D1
-    rechts_Spalte4_4_A1 rechts_Spalte4_5_Bb1 rechts_Spalte5_1_F rechts_Spalte5_2_B rechts_Spalte5_3_F1
-    rechts_Spalte5_4_C2 rechts_Spalte5_5_F2 rechts_Spalte6_1_F# rechts_Spalte6_2_Bb rechts_Spalte6_3_F#1
-    rechts_Spalte6_4_C#2`.split(/\s+/).map(name => {
-      const [hand, , , note] = name.split('_');
-      const [, n, oct] = note.match(/^([A-G][#b]?)(-?\d)?$/);
-      return { name, hand: hand === 'links' ? 'left' : 'right', midi: toMidi(n + (4 + Number(oct || 0))) };
-    });
-  // Buttons without their own recording use the same note from the other hand, or else the nearest
-  // recording of the same hand, re-pitched.
-  function sampleFor(b) {
-    const same = SAMPLE_FILES.find(f => f.hand === b.hand && f.midi === b.midi) ||
-      SAMPLE_FILES.find(f => f.midi === b.midi);
-    if (same) return { file: same, rate: 1 };
-    const near = SAMPLE_FILES.filter(f => f.hand === b.hand)
-      .sort((x, y) => Math.abs(x.midi - b.midi) - Math.abs(y.midi - b.midi))[0];
-    return { file: near, rate: Math.pow(2, (b.midi - near.midi) / 12) };
-  }
-
   let playMode = false, playCtx = null, playOut = null;
   const loops = new Map();    // file name -> Promise<AudioBuffer> of a seamless loop
   const playing = new Map();  // button -> { src, gain }
 
-  // A loop from a recording: the longest steady stretch (attack and release cut off), its loudness
-  // evened out so the loop doesn't swell at each repeat, and a loop point where the waveform best
-  // matches the start, cross-faded over 80 ms. Returns samples normalised to the same loudness.
-  function makeLoop(x, sr) {
-    const hop = Math.round(sr * 0.01), win = Math.round(sr * 0.05);
-    const env = [];
-    for (let i = 0; i + win <= x.length; i += hop) {
-      let e = 0;
-      for (let j = i; j < i + win; j++) e += x[j] * x[j];
-      env.push(Math.sqrt(e / win));
-    }
-    const peak = Math.max(...env);
-    let run = [0, 0];
-    for (let i = 0; i < env.length;) {
-      if (env[i] < 0.6 * peak) { i++; continue; }
-      let j = i;
-      while (j < env.length && env[j] >= 0.6 * peak) j++;
-      if (j - i > run[1] - run[0]) run = [i, j];
-      i = j;
-    }
-    const s0 = (run[0] + 5) * hop, s1 = Math.min(x.length, (run[1] - 5) * hop + win, s0 + Math.round(sr * 1.3));
-    const loudness = i => {  // envelope at sample i, interpolated between analysis windows
-      const p = Math.max(0, (i - win / 2) / hop), k = Math.min(env.length - 1, Math.floor(p));
-      const k2 = Math.min(env.length - 1, k + 1), f = Math.min(1, p - k);
-      return Math.max(1e-4, env[k] * (1 - f) + env[k2] * f);
-    };
-    const y = new Float32Array(Math.max(0, s1 - s0));
-    for (let i = 0; i < y.length; i++) y[i] = x[s0 + i] / loudness(s0 + i);
-
-    const fade = Math.min(Math.round(sr * 0.08), Math.floor(y.length * 0.2));
-    const maxLen = y.length - fade, minLen = Math.round(maxLen * 0.7);
-    const match = (len, step) => {
-      let ab = 0, aa = 0, bb = 0;
-      for (let i = 0; i < fade; i += step) { const a = y[i], b = y[len + i]; ab += a * b; aa += a * a; bb += b * b; }
-      return ab / Math.sqrt(aa * bb || 1);
-    };
-    let len = maxLen, best = -2;
-    for (let L = minLen; L <= maxLen; L += 8) { const c = match(L, 4); if (c > best) { best = c; len = L; } }
-    best = -2;
-    for (let L = Math.max(minLen, len - 8), top = Math.min(maxLen, len + 8); L <= top; L++) {
-      const c = match(L, 1); if (c > best) { best = c; len = L; }
-    }
-
-    const out = new Float32Array(len);
-    let rms = 0;
-    for (let i = 0; i < len; i++) {
-      const w = i < fade ? i / fade : 1;
-      out[i] = y[i] * w + (i < fade ? y[len + i] * (1 - w) : 0);
-      rms += out[i] * out[i];
-    }
-    const gain = 0.12 / Math.sqrt(rms / len || 1);
-    for (let i = 0; i < len; i++) out[i] *= gain;
-    return out;
-  }
-
-  async function loadLoop(file) {
-    const res = await fetch('samples/' + encodeURIComponent(file.name) + '.m4a');
-    const buf = await playCtx.decodeAudioData(await res.arrayBuffer());
-    const loop = makeLoop(buf.getChannelData(0), buf.sampleRate);
-    const out = playCtx.createBuffer(1, loop.length, buf.sampleRate);
-    out.copyToChannel(loop, 0);
-    return out;
-  }
   const getLoop = file => {
-    if (!loops.has(file.name)) loops.set(file.name, loadLoop(file).catch(err => { loops.delete(file.name); throw err; }));
+    if (!loops.has(file.name)) loops.set(file.name, loadLoop(playCtx, file).catch(err => { loops.delete(file.name); throw err; }));
     return loops.get(file.name);
   };
 

@@ -108,6 +108,7 @@ for (const f of samples) {
   } });
 }
 cases.push({ group: 'play', name: 'tap buttons', settings: SETTINGS, play: true });
+cases.push({ group: 'song', name: 'Hänschen klein', settings: SETTINGS, song: true });
 
 const selected = cases.filter(c => !filters.length || filters.some(w => c.group.includes(w) || c.name.includes(w)));
 
@@ -147,6 +148,7 @@ const INJECT = `
   // Record every distinct display state
   window.__log = [];
   addEventListener('DOMContentLoaded', () => {
+    if (!document.getElementById('nameBox')) return;  // only the main page
     const txt = id => document.getElementById(id).textContent;
     const cls = c => [...document.querySelectorAll('.maccann .btn.' + c + ' text')].map(t => t.textContent).join(' ');
     new MutationObserver(() => {
@@ -188,8 +190,8 @@ async function startWorker(n) {
   await cdp('Runtime.enable');
   await cdp('Page.enable');
   await cdp('Page.addScriptToEvaluateOnNewDocument', { source: INJECT });
-  const open = async () => {
-    await cdp('Page.navigate', { url: `${ORIGIN}/index.html` });
+  const open = async (page = 'index.html') => {
+    await cdp('Page.navigate', { url: `${ORIGIN}/${page}` });
     for (let i = 0; i < 100 && await ev('document.readyState').catch(() => '') !== 'complete'; i++) await sleep(20);
   };
   await open();
@@ -199,9 +201,11 @@ async function startWorker(n) {
 
 async function runCase(w, c) {
   await w.ev(`localStorage.setItem('noteListener.settings', ${JSON.stringify(JSON.stringify(c.settings))})`);
-  await w.open();
+  if (c.song) await w.ev(`localStorage.setItem('noteListener.songTempo', '160')`);
+  await w.open(c.song ? 'song.html' : 'index.html');
   w.errors.length = 0;
   if (c.play) return runPlayCase(w);
+  if (c.song) return runSongCase(w);
   await w.ev(`document.getElementById('start').click()`);
   await sleep(150);
   await w.ev(`window.__play(${JSON.stringify(c.files)})`);
@@ -252,6 +256,57 @@ async function runPlayCase(w) {
   if ((await measure()).rms > 0.001) problems.push('still sounding after switching to Microphone');
   if (w.errors.length) problems.push(`page error: ${w.errors[0]}`);
   return problems.join('; ') || null;
+}
+
+// Song page: start from the 3rd line ("A-ber Mut-ter wei-net sehr, hat ja nun kein …") and check that each
+// highlighted note is the one sounding, in order, and that its button is lit
+const SONG_FROM = 24, SONG_MELODY = [62, 62, 62, 62, 62, 64, 65, 64, 64, 64, 64, 64, 65, 67];
+// Pitch of the output by autocorrelation (the song page has no pitch detector of its own)
+const PITCH_JS = `(buf, sr) => {
+  let rms = 0; for (const v of buf) rms += v * v; rms = Math.sqrt(rms / buf.length);
+  const acf = lag => { let a = 0, m = 0; for (let i = 0; i + lag < buf.length; i++) { a += buf[i] * buf[i + lag]; m += buf[i] * buf[i] + buf[i + lag] * buf[i + lag]; } return m ? 2 * a / m : 0; };
+  const lo = Math.floor(sr / 1500), hi = Math.ceil(sr / 70), r = [];
+  for (let l = lo; l <= hi; l++) r[l] = acf(l);
+  const top = Math.max(...r.slice(lo));
+  for (let l = lo + 1; l < hi; l++) if (r[l] >= 0.9 * top && r[l] >= r[l - 1] && r[l] >= r[l + 1]) return { rms, freq: sr / l, clarity: r[l] };
+  return { rms, freq: 0, clarity: 0 };
+}`;
+async function runSongCase(w) {
+  const count = await w.ev(`(() => { const all = [...document.querySelectorAll('.score .note')];
+    all[${SONG_FROM}].dispatchEvent(new MouseEvent('click', { bubbles: true })); return all.length; })()`);
+  if (count !== 49) return `expected 49 notes, found ${count}`;
+  const seen = await w.ev(`(async () => {
+    const all = [...document.querySelectorAll('.score .note')], buf = new Float32Array(2048), seen = [];
+    const pitch = ${PITCH_JS};
+    for (let i = 0; i < 110; i++) {
+      await new Promise(r => setTimeout(r, 40));
+      if (!window.__out) continue;
+      window.__out.getFloatTimeDomainData(buf);
+      const p = pitch(buf, window.__outCtx.sampleRate);
+      seen.push({ k: all.findIndex(n => n.classList.contains('now')),
+        on: [...document.querySelectorAll('.maccann .btn.on text')].map(t => t.textContent).join(), ...p });
+    }
+    document.getElementById('play').click();
+    return seen;
+  })()`);
+  const problems = [];
+  const order = seen.map(s => s.k).filter((k, i, a) => k >= 0 && k !== a[i - 1]);
+  const want = Array.from({ length: order.length }, (_, i) => SONG_FROM + i);
+  if (order.length < 8 || order.join() !== want.join()) problems.push(`highlight order ${order.join(' ')}`);
+  // The sounding pitch must match the highlighted note (skipping each note's first frames)
+  let checked = 0;
+  for (let i = 2; i < seen.length; i++) {
+    const s = seen[i];
+    if (s.k < SONG_FROM || s.k !== seen[i - 1].k || s.k !== seen[i - 2].k || s.clarity < 0.9 || s.rms < 0.02) continue;
+    const midi = Math.round(69 + 12 * Math.log2(s.freq / 440));
+    checked++;
+    if (midi !== SONG_MELODY[s.k - SONG_FROM]) problems.push(`note ${s.k}: heard ${midi}, expected ${SONG_MELODY[s.k - SONG_FROM]}`);
+  }
+  if (checked < 8) problems.push(`only ${checked} frames could be checked`);
+  const lit = new Set(seen.filter(s => s.k >= SONG_FROM).map(s => s.on));
+  if (![...lit].every(b => ['D4', 'E4', 'F4', 'G4'].includes(b))) problems.push(`lit buttons: ${[...lit].join(' ')}`);
+  if (w.errors.length) problems.push(`page error: ${w.errors[0]}`);
+  return [...new Set(problems)].join('; ') || null;
 }
 
 // ---------- run ----------

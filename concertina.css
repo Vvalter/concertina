@@ -1,0 +1,77 @@
+/* Shared by the pages: colours, layout basics, controls and the button diagram. */
+:root {
+  --bg: #f6f5f1;
+  --panel: #ffffff;
+  --ink: #1d1d1f;
+  --muted: #6b6b70;
+  --line: #d9d7d0;
+  --accent: #2f6fdb;
+  --good: #1f9d55;
+  --warn: #d98a1f;
+  --bad: #d2463c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141416;
+    --panel: #1e1e22;
+    --ink: #ececef;
+    --muted: #9a9aa2;
+    --line: #36363c;
+    --accent: #6b9dff;
+    --good: #3ecf7a;
+    --warn: #f0a940;
+    --bad: #ff6b5f;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px;
+}
+main { width: 100%; max-width: 720px; display: flex; flex-direction: column; gap: 16px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font-size: 1.25rem; margin: 0; font-weight: 600; }
+h1 .version { font-size: 0.75rem; font-weight: 600; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; vertical-align: middle; margin-left: 6px; }
+.controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 0.9rem; color: var(--muted); }
+.controls label { display: flex; align-items: center; gap: 6px; }
+.controls input[type=number] {
+  width: 4.5em; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--panel); color: var(--ink); font: inherit;
+}
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button {
+  border: 0; background: var(--panel); color: var(--muted); padding: 4px 12px; font: inherit; cursor: pointer;
+}
+.seg button[aria-pressed=true] { background: var(--accent); color: #fff; }
+button.start {
+  border: 0; border-radius: 10px; padding: 10px 18px; font: inherit; font-weight: 600;
+  background: var(--accent); color: #fff; cursor: pointer;
+}
+button.start.listening { background: var(--bad); }
+.card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px;
+}
+svg.maccann { width: 100%; height: auto; display: block; transition: opacity 0.3s; }
+svg.maccann.stale { opacity: 0.45; }
+.maccann .btn circle { fill: var(--panel); stroke: var(--muted); stroke-width: 2; }
+.maccann .btn.accidental circle { fill: var(--line); }
+.maccann .btn text { fill: var(--ink); font: 600 17px system-ui, sans-serif; text-anchor: middle; dominant-baseline: central; }
+.maccann .btn.on circle { fill: var(--accent); stroke: var(--accent); }
+.maccann .btn.on text { fill: #fff; }
+.maccann .hand { fill: var(--muted); font: 600 20px system-ui, sans-serif; text-anchor: middle; }
+.maccann .air circle { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 4 3; }
+.maccann .air text { fill: var(--muted); font: 600 12px system-ui, sans-serif; text-anchor: middle; dominant-baseline: central; }
+.maccann .hint { fill: var(--muted); font: 16px system-ui, sans-serif; text-anchor: middle; }
+.maccann.playable .btn { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.maccann.playable .btn:hover circle { stroke: var(--accent); }
+.maccann .btn.fits circle { stroke: var(--accent); stroke-dasharray: 6 4; }
+.maccann .btn.target circle { fill: color-mix(in srgb, var(--accent) 22%, var(--panel)); stroke: var(--accent); stroke-width: 5; }
+.maccann .btn.good circle { fill: var(--good); stroke: var(--good); }
+.maccann .btn.bad circle { fill: var(--bad); stroke: var(--bad); }
+.maccann .btn.good text, .maccann .btn.bad text { fill: #fff; }
