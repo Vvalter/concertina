@@ -26,6 +26,8 @@ Script sections, in order (search for `// ----------`):
 | audio | `getUserMedia` (echo cancellation, noise suppression and AGC all **off**; they wreck instrument audio). Two `AnalyserNode`s: 2048 for the monophonic path, 16384 for chords. |
 | loop | Per animation frame: gate on RMS. If MPM clarity < `CHORD_CLARITY_MAX`, try chord detection first; otherwise fall back to a single note. A result must repeat for `NOTE_CONFIRM` / `CHORD_CONFIRM` frames before it is shown. |
 
+The version label (`V1`) is in the `<h1>` at the top of the page. Bump it with each change that gets pushed, so the owner can tell which version the browser has loaded (GitHub Pages can serve cached copies).
+
 Test hooks at the bottom of the script: `window.__detectPitch`, `window.__show(sound)` and `window.__identifyChord`.
 
 ## Maccann layout: source and caveats

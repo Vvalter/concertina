@@ -46,6 +46,7 @@
   main { width: 100%; max-width: 720px; display: flex; flex-direction: column; gap: 16px; }
   header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   h1 { font-size: 1.25rem; margin: 0; font-weight: 600; }
+  h1 .version { font-size: 0.75rem; font-weight: 600; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; vertical-align: middle; margin-left: 6px; }
   .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 0.9rem; color: var(--muted); }
   .controls label { display: flex; align-items: center; gap: 6px; }
   .controls input[type=number] {
@@ -122,7 +123,7 @@
 <body>
 <main>
   <header>
-    <h1>Note Listener</h1>
+    <h1>Note Listener <span class="version">V1</span></h1>
     <div class="controls">
       <div class="seg" role="group" aria-label="Accidentals">
         <button id="btnSharp" aria-pressed="true">Sharps ♯</button>
