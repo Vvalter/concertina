@@ -242,7 +242,34 @@
     return out;
   }
 
+  // Loops for one AudioContext, made on first use; a failed load is tried again next time
+  function loopCache(ctx) {
+    const loops = new Map();
+    return file => {
+      if (!loops.has(file.name)) loops.set(file.name, loadLoop(ctx, file).catch(err => { loops.delete(file.name); throw err; }));
+      return loops.get(file.name);
+    };
+  }
+
+  // Plays a loop from time `t` to `end` into `dest` at `level`, with short fades so notes don't click.
+  // Returns { src, gain } so the note can be cut off early.
+  function playNote(ctx, dest, buffer, rate, t, end, level = 1) {
+    const src = ctx.createBufferSource(), gain = ctx.createGain();
+    src.buffer = buffer;
+    src.loop = true;
+    src.playbackRate.value = rate;
+    const fade = Math.min(0.03, (end - t) / 4);
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(level, t + fade);
+    gain.gain.setValueAtTime(level, end - fade);
+    gain.gain.linearRampToValueAtTime(0, end);
+    src.connect(gain).connect(dest);
+    src.start(t);
+    src.stop(end + 0.05);
+    return { src, gain };
+  }
+
   window.Concertina = {
-    SVG_NS, LETTERS, ACC, spell, label, MACCANN, toMidi, buildMaccann, SAMPLE_FILES, sampleFor, makeLoop, loadLoop,
+    SVG_NS, LETTERS, ACC, spell, label, MACCANN, toMidi, buildMaccann, SAMPLE_FILES, sampleFor, makeLoop, loadLoop, loopCache, playNote,
   };
 })();

@@ -109,6 +109,7 @@ for (const f of samples) {
 }
 cases.push({ group: 'play', name: 'tap buttons', settings: SETTINGS, play: true });
 cases.push({ group: 'song', name: 'Hänschen klein', settings: SETTINGS, song: true });
+cases.push({ group: 'song', name: 'Hänschen klein – Duett', settings: SETTINGS, duet: true });
 
 const selected = cases.filter(c => !filters.length || filters.some(w => c.group.includes(w) || c.name.includes(w)));
 
@@ -202,10 +203,12 @@ async function startWorker(n) {
 async function runCase(w, c) {
   await w.ev(`localStorage.setItem('noteListener.settings', ${JSON.stringify(JSON.stringify(c.settings))})`);
   if (c.song) await w.ev(`localStorage.setItem('noteListener.songTempo', '160')`);
-  await w.open(c.song ? 'song.html' : 'index.html');
+  if (c.duet) await w.ev(`localStorage.setItem('noteListener.duetTempo', '160')`);
+  await w.open(c.song ? 'song.html' : c.duet ? 'duet.html' : 'index.html');
   w.errors.length = 0;
   if (c.play) return runPlayCase(w);
   if (c.song) return runSongCase(w);
+  if (c.duet) return runDuetCase(w);
   await w.ev(`document.getElementById('start').click()`);
   await sleep(150);
   await w.ev(`window.__play(${JSON.stringify(c.files)})`);
@@ -297,7 +300,8 @@ async function runSongCase(w) {
   let checked = 0;
   for (let i = 2; i < seen.length; i++) {
     const s = seen[i];
-    if (s.k < SONG_FROM || s.k !== seen[i - 1].k || s.k !== seen[i - 2].k || s.clarity < 0.9 || s.rms < 0.02) continue;
+    // only the middle of a note: the highlight can lag the sound by a frame when the machine is busy
+    if (s.k < SONG_FROM || s.k !== seen[i - 1].k || s.k !== seen[i - 2].k || s.k !== seen[i + 1]?.k || s.clarity < 0.9 || s.rms < 0.02) continue;
     const midi = Math.round(69 + 12 * Math.log2(s.freq / 440));
     checked++;
     if (midi !== SONG_MELODY[s.k - SONG_FROM]) problems.push(`note ${s.k}: heard ${midi}, expected ${SONG_MELODY[s.k - SONG_FROM]}`);
@@ -307,6 +311,47 @@ async function runSongCase(w) {
   if (![...lit].every(b => ['D4', 'E4', 'F4', 'G4'].includes(b))) problems.push(`lit buttons: ${[...lit].join(' ')}`);
   if (w.errors.length) problems.push(`page error: ${w.errors[0]}`);
   return [...new Set(problems)].join('; ') || null;
+}
+
+// Duet page: from "eilt nach Haus ge-" to the end. Both hands' buttons must light up as written, the
+// bellows-shake bar (E4 G4 C5 over C3 G3) must pulse at about 7 Hz, and playback must stop at the end.
+async function runDuetCase(w) {
+  await w.ev(`[...document.querySelectorAll('.score .ev')].find(g => g.textContent === 'eilt')
+    .dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
+  const seen = await w.ev(`(async () => {
+    const seen = [], buf = new Float32Array(256);
+    const lit = () => [...document.querySelectorAll('.maccann .btn')].map((g, i) => g.classList.contains('on') ? (i < 25 ? 'L' : 'R') + g.querySelector('text').textContent : '').filter(Boolean).sort().join(' ');
+    const t0 = performance.now();
+    while (performance.now() - t0 < 9000) {
+      await new Promise(r => setTimeout(r, 8));
+      if (!window.__out) continue;
+      window.__out.fftSize = 256;
+      window.__out.getFloatTimeDomainData(buf);
+      let e = 0; for (const v of buf) e += v * v;
+      seen.push({ t: performance.now() - t0, rms: Math.sqrt(e / buf.length), lit: lit(), section: document.getElementById('nowSection').textContent,
+        playing: document.getElementById('play').classList.contains('listening') });
+    }
+    return seen;
+  })()`);
+  const problems = [];
+  const chords = [...new Set(seen.map(s => s.lit))];
+  for (const want of ['LC3 LG3 RC5 RE4 RG4', 'LC3 LC4 LG3 RC6 RE5 RG5', 'LC4 LE3 RC5 RE5'])
+    if (!chords.includes(want)) problems.push(`never lit: ${want}`);
+  // Bellows shake: loudness swings several times per second during the held chord
+  const held = seen.filter(s => s.lit === 'LC3 LG3 RC5 RE4 RG4' && s.rms > 0.005);
+  if (held.length < 20) problems.push(`shake bar too short (${held.length} frames)`);
+  else {
+    const r = held.slice(5).map(s => s.rms), mean = r.reduce((a, b) => a + b) / r.length;
+    let crossings = 0;
+    for (let i = 1; i < r.length; i++) if ((r[i - 1] - mean) * (r[i] - mean) < 0) crossings++;
+    const dur = (held.at(-1).t - held[5].t) / 1000, hz = crossings / 2 / dur;
+    const depth = (Math.max(...r) - Math.min(...r)) / mean;
+    if (hz < 4 || hz > 11 || depth < 0.4) problems.push(`no bellows shake: ${hz.toFixed(1)} Hz, depth ${depth.toFixed(2)}`);
+  }
+  if (!seen.some(s => s.section === 'Balgtremolo')) problems.push('section label Balgtremolo never shown');
+  if (seen.at(-1).playing) problems.push('still playing after the end');
+  if (w.errors.length) problems.push(`page error: ${w.errors[0]}`);
+  return problems.join('; ') || null;
 }
 
 // ---------- run ----------

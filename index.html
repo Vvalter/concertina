@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V4">
+<link rel="stylesheet" href="concertina.css?v=V5">
 <style>
   a.nav { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
   .update {
@@ -80,8 +80,8 @@
   </div>
   <header>
     <div>
-      <h1>Note Listener <span class="version" id="version">V4</span></h1>
-      <a class="nav" href="song.html">♪ Song: Hänschen klein →</a>
+      <h1>Note Listener <span class="version" id="version">V5</span></h1>
+      <a class="nav" href="song.html">♪ Hänschen klein</a> · <a class="nav" href="duet.html">♫ Hänschen klein – Duett</a>
     </div>
     <div class="controls">
       <div class="seg" role="group" aria-label="Mode">
@@ -145,10 +145,10 @@
   <div class="history" id="history"></div>
 </main>
 
-<script src="concertina.js?v=V4"></script>
+<script src="concertina.js?v=V5"></script>
 <script>
 (() => {
-  const { ACC, spell, label, buildMaccann, SAMPLE_FILES, sampleFor, loadLoop } = Concertina;
+  const { ACC, spell, label, buildMaccann, SAMPLE_FILES, sampleFor, loopCache } = Concertina;
 
   // ---------- pitch detection (McLeod Pitch Method / NSDF) ----------
   const MIN_FREQ = 40, MAX_FREQ = 4200;
@@ -865,20 +865,15 @@
   });
 
   // ---------- play mode: tap a button to hear it ----------
-  let playMode = false, playCtx = null, playOut = null;
-  const loops = new Map();    // file name -> Promise<AudioBuffer> of a seamless loop
+  let playMode = false, playCtx = null, playOut = null, getLoop = null;
   const playing = new Map();  // button -> { src, gain }
-
-  const getLoop = file => {
-    if (!loops.has(file.name)) loops.set(file.name, loadLoop(playCtx, file).catch(err => { loops.delete(file.name); throw err; }));
-    return loops.get(file.name);
-  };
 
   function ensurePlayCtx() {
     if (playCtx) return;
     playCtx = new (window.AudioContext || window.webkitAudioContext)();
     playOut = playCtx.createDynamicsCompressor();  // several buttons at once shouldn't clip
     playOut.connect(playCtx.destination);
+    getLoop = loopCache(playCtx);
   }
 
   async function toggleButton(b) {

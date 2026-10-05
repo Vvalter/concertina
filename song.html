@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V4">
+<link rel="stylesheet" href="concertina.css?v=V5">
 <style>
   a.back { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
   .controls input[type=range] { width: 9em; accent-color: var(--accent); }
@@ -49,7 +49,7 @@
 <main>
   <header>
     <div>
-      <a class="back" href="index.html">← Note Listener</a>
+      <a class="back" href="index.html">← Note Listener</a> · <a class="back" href="duet.html">Duett-Fassung</a>
       <h1 id="title">Hänschen klein</h1>
     </div>
     <div class="controls">
@@ -75,10 +75,10 @@
   <div class="status" id="status"></div>
 </main>
 
-<script src="concertina.js?v=V4"></script>
+<script src="concertina.js?v=V5"></script>
 <script>
 (() => {
-  const { SVG_NS, ACC, spell, label, toMidi, buildMaccann, sampleFor, loadLoop } = Concertina;
+  const { SVG_NS, ACC, spell, label, toMidi, buildMaccann, sampleFor, loopCache, playNote } = Concertina;
   const $ = id => document.getElementById(id);
 
   // ---------- the song ----------
@@ -202,12 +202,7 @@
   }
 
   // ---------- playback ----------
-  let ctx = null, out = null, voices = [], startTime = 0, startBeat = 0, rafId = 0, playing = false;
-  const loops = new Map();
-  const getLoop = file => {
-    if (!loops.has(file.name)) loops.set(file.name, loadLoop(ctx, file).catch(err => { loops.delete(file.name); throw err; }));
-    return loops.get(file.name);
-  };
+  let ctx = null, out = null, getLoop = null, voices = [], startTime = 0, startBeat = 0, rafId = 0, playing = false;
   const tempoInput = $('tempo');
   const secPerBeat = () => 60 / Number(tempoInput.value);
 
@@ -217,6 +212,7 @@
       ctx = new (window.AudioContext || window.webkitAudioContext)();
       out = ctx.createDynamicsCompressor();
       out.connect(ctx.destination);
+      getLoop = loopCache(ctx);
     }
     if (ctx.state !== 'running') await ctx.resume();
     playing = true;
@@ -245,18 +241,7 @@
       const t = startTime + (n.beat - startBeat) * spb;
       // Notes are slightly detached, so repeated notes are heard as separate notes
       const end = t + n.beats * spb - Math.min(0.08, n.beats * spb * 0.15);
-      const src = ctx.createBufferSource(), gain = ctx.createGain();
-      src.buffer = sounds[k].buffer;
-      src.loop = true;
-      src.playbackRate.value = sounds[k].rate;
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(1, t + 0.02);
-      gain.gain.setValueAtTime(1, end - 0.03);
-      gain.gain.linearRampToValueAtTime(0, end);
-      src.connect(gain).connect(out);
-      src.start(t);
-      src.stop(end + 0.05);
-      voices.push({ src, gain });
+      voices.push(playNote(ctx, out, sounds[k].buffer, sounds[k].rate, t, end));
     });
     const tick = () => {
       if (!playing) return;

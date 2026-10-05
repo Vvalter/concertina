@@ -14,11 +14,12 @@ No build step, no dependencies, no npm packages. The only external resource is t
 
 - `index.html`: the Note Listener (inline CSS and one inline `<script>` IIFE, sections below).
 - `song.html`: plays "Hänschen klein" from the recordings, highlights each note in the score (with lyrics) and its right-hand button, and shows the next button dashed. Tempo slider (remembered), click a note to start there, space bar plays/stops. The song is the `SONG.notes` string (`<note><octave>:<quarters>:<syllable>`, bars split by `|`); more songs can use the same format. Uses the ♯/♭ and c'/C4 choice saved by the main page.
-- `concertina.js` (`window.Concertina`): shared by both pages. Contains note naming (`spell`, `label`), the Edeophone layout (`MACCANN`, `buildMaccann(svg)`), and the recordings (`SAMPLE_FILES`, `sampleFor`, `makeLoop`, `loadLoop(ctx, file)`).
+- `duet.html`: "Hänschen klein – Duett", an arrangement for duet concertina. The melody is an octave up in the right hand, the left hand plays an oom-pah bass (C/G7). The middle part is soft, in thirds over held chords, then a crescendo; the last verse is loud with a ritardando. The final note and the ending chord use a bellows shake (7 Hz tremolo). It is drawn on a grand staff (R treble, L bass); both hands' buttons light up, the next ones dashed. The arrangement is the `BARS` table (one line per bar per hand; `+` for chords, `r` for rests), plus `LEVEL` (bellows level per bar), `SLOW` (ritardando) and `SHAKE` per bar. Both hands play through one "bellows" gain: a swell over each two-bar phrase and a short dip at each bellows reversal.
+- `concertina.js` (`window.Concertina`): shared by both pages. Contains note naming (`spell`, `label`), the Edeophone layout (`MACCANN`, `buildMaccann(svg)`), and the recordings (`SAMPLE_FILES`, `sampleFor`, `makeLoop`, `loadLoop(ctx, file)`, `loopCache(ctx)`, `playNote(...)`).
 - `concertina.css`: shared colours, layout basics, controls and the button-diagram styles.
 - `samples/`: one recording per button (see Testing for the names). Play mode and the song page need them deployed too.
 
-Both pages load the shared files as `concertina.js?v=V4` / `concertina.css?v=V4`. **Update that query together with the version label**, so GitHub Pages' cache can't pair a new page with old shared files.
+Both pages load the shared files as `concertina.js?v=V5` / `concertina.css?v=V5`. **Update that query together with the version label**, so GitHub Pages' cache can't pair a new page with old shared files.
 
 `index.html` script sections, in order (search for `// ----------`):
 
@@ -36,7 +37,7 @@ Both pages load the shared files as `concertina.js?v=V4` / `concertina.css?v=V4`
 | play mode | "Microphone / Play buttons" switch. Tapping a diagram button toggles a looped recording from `samples/` (`SAMPLE_FILES`; buttons without one borrow the other hand's or a re-pitched neighbour). `makeLoop` (concertina.js) builds a ~3 s loop per note: from the longest steady stretch (loudness flattened) it chains 0.15–0.3 s pieces taken from random places, each joined where the waveform matches best (60 ms crossfade), so no short pattern repeats. About 30 ms per note; 50 loops are ~26 MB of audio. Needs http(s): browsers block `fetch` on `file://`. |
 | loop | Per animation frame: gate on RMS. If chords are on (`useChords`, the "Notes + chords / Notes only" switch) and MPM clarity < `CHORD_CLARITY_MAX`, try chord detection first; otherwise fall back to a single note. A result must repeat for `NOTE_CONFIRM` / `CHORD_CONFIRM` frames before it is shown. |
 
-The version label (`#version`, currently `V4`) is in the `<h1>`. **Bump it with every change that gets pushed.** It shows the owner which version is loaded, and it drives the update check: on load, and when the tab becomes visible again (at most once a minute), the page re-fetches itself with `fetch(location.href, {cache: 'reload'})`. That bypasses GitHub Pages' 10-minute `max-age` and refreshes the browser cache. If the fetched `#version` differs, it shows a "new version available – Reload" bar. It is skipped on `file://`.
+The version label (`#version`, currently `V5`) is in the `<h1>`. **Bump it with every change that gets pushed.** It shows the owner which version is loaded, and it drives the update check: on load, and when the tab becomes visible again (at most once a minute), the page re-fetches itself with `fetch(location.href, {cache: 'reload'})`. That bypasses GitHub Pages' 10-minute `max-age` and refreshes the browser cache. If the fetched `#version` differs, it shows a "new version available – Reload" bar. It is skipped on `file://`.
 
 Test hooks at the bottom of the script: `window.__detectPitch`, `window.__show(sound)` and `window.__identifyChord`.
 
@@ -66,6 +67,7 @@ Test hooks at the bottom of the script: `window.__detectPitch`, `window.__show(s
 - `practice`, `practice-single`: practice-mode verdicts and green/red buttons.
 - `play`: tapped buttons sound at the right pitch until tapped again; switching to Microphone stops them.
 - `song`: song.html highlights the notes in order, the right button is lit, and the right pitch sounds.
+- `song` (Duett): duet.html lights both hands' buttons, the bellows-shake bar pulses at ~7 Hz, and playback stops at the end.
 
 Sample names: `<links|rechts>_Spalte<col>_<row>_<note><octave>` (no octave suffix = 4, `1` = 5, `2` = 6, `-1` = 3). The left hand's column 4 (D3, E♭4, D4, A4, B♭4) has no recordings. Needs Node 22+ and Google Chrome (`CHROME=` to override).
 
