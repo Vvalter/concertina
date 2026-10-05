@@ -46,6 +46,15 @@
   main { width: 100%; max-width: 720px; display: flex; flex-direction: column; gap: 16px; }
   header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   h1 { font-size: 1.25rem; margin: 0; font-weight: 600; }
+  .update {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 14px; border-radius: 12px; background: var(--accent); color: #fff;
+  }
+  .update[hidden] { display: none; }
+  .update button {
+    border: 0; border-radius: 8px; padding: 6px 14px; font: inherit; font-weight: 600;
+    background: #fff; color: var(--accent); cursor: pointer;
+  }
   h1 .version { font-size: 0.75rem; font-weight: 600; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; vertical-align: middle; margin-left: 6px; }
   .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 0.9rem; color: var(--muted); }
   .controls label { display: flex; align-items: center; gap: 6px; }
@@ -122,8 +131,12 @@
 </head>
 <body>
 <main>
+  <div class="update" id="update" hidden role="status">
+    <span id="updateText">A new version is available.</span>
+    <button id="updateReload">Reload</button>
+  </div>
   <header>
-    <h1>Note Listener <span class="version">V1</span></h1>
+    <h1>Note Listener <span class="version" id="version">V2</span></h1>
     <div class="controls">
       <div class="seg" role="group" aria-label="Accidentals">
         <button id="btnSharp" aria-pressed="true">Sharps ♯</button>
@@ -731,10 +744,38 @@
     tick();
   }
 
+  // ---------- update check ----------
+  // GitHub Pages lets browsers cache the page for 10 minutes, so a plain reload can show an old
+  // version. Fetching with cache: 'reload' bypasses the browser cache *and* stores the fresh copy,
+  // so after a normal location.reload() the new version is what loads.
+  const runningVersion = $('version').textContent.trim();
+  let lastCheck = 0;
+
+  async function checkForUpdate() {
+    if (!/^https?:$/.test(location.protocol) || Date.now() - lastCheck < 60000) return;
+    lastCheck = Date.now();
+    try {
+      const res = await fetch(location.href, { cache: 'reload' });
+      if (!res.ok) return;
+      const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+      const latest = doc.getElementById('version')?.textContent.trim();
+      if (latest && latest !== runningVersion) {
+        $('updateText').textContent = `A new version (${latest}) is available.`;
+        $('update').hidden = false;
+      }
+    } catch { /* offline or blocked: keep running the current version */ }
+  }
+  $('updateReload').onclick = () => location.reload();
+  checkForUpdate();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkForUpdate();
+  });
+
   // Exposed for testing
   window.__detectPitch = detectPitch;
   window.__show = sound => { current = sound; render(sound); };
   window.__identifyChord = identifyChord;
+  window.__checkForUpdate = () => { lastCheck = 0; return checkForUpdate(); };
 })();
 </script>
 </body>
