@@ -111,6 +111,8 @@
   .maccann .btn.on circle { fill: var(--accent); stroke: var(--accent); }
   .maccann .btn.on text { fill: #fff; }
   .maccann .hand { fill: var(--muted); font: 600 20px system-ui, sans-serif; text-anchor: middle; }
+  .maccann .air circle { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 4 3; }
+  .maccann .air text { fill: var(--muted); font: 600 12px system-ui, sans-serif; text-anchor: middle; dominant-baseline: central; }
   .maccann .hint { fill: var(--muted); font: 16px system-ui, sans-serif; text-anchor: middle; }
   .status { color: var(--muted); font-size: 0.9rem; min-height: 1.3em; }
   .level { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
@@ -160,8 +162,8 @@
 
   <section class="card">
     <h2>Maccann duet buttons</h2>
-    <p class="sub" id="maccannInfo">The 45 core buttons shared by almost every Maccann duet (46-button standard layout).</p>
-    <svg class="maccann stale" id="maccann" viewBox="0 0 880 410" aria-label="Maccann duet keyboard"></svg>
+    <p class="sub" id="maccannInfo">Lachenal Edeophone, 55 keys (Nr. 2570).</p>
+    <svg class="maccann stale" id="maccann" viewBox="0 0 1000 520" aria-label="Maccann duet keyboard"></svg>
   </section>
 
   <div class="level"><div id="level"></div></div>
@@ -413,27 +415,28 @@
   }
 
   // ---------- Maccann duet keyboard ----------
-  // Core 45 buttons of the 46-button Wheatstone "standard" Maccann, positions traced from
-  // Robert Gaskins, "How to Play Chords on Any MacCann Duet Concertina" (2001), p. 3.
-  // [x, y, note] in the chart's coordinates; the bottom of each hand is toward the hand rest.
+  // The owner's instrument: Lachenal Edeophone (Maccann system), 55 keys, Nr. 2570, traced from
+  // Lachenal_Edeophone_55key_Nr2570-3.pdf. [x, y, note] in the PDF's coordinates (points);
+  // the bottom of each hand is toward the hand rest. Chart octave marks: none = 4, ¹ = 5, ² = 6, ⁻¹ = 3.
   const MACCANN = {
     left: [
-      [50,163,'G#4'], [50,178.6,'C#4'], [50,194.3,'G#3'],
-      [66,157.9,'G4'], [66,173.4,'C4'], [66,189,'G3'], [66,204.6,'C3'],
-      [82,152.6,'B4'], [82,168.2,'E4'], [82,183.8,'A3'], [82,199.3,'E3'],
-      [98,163,'A4'], [98,178.6,'D4'], [98,194.3,'Eb4'],
-      [113,157.9,'C5'], [113,173.4,'F4'], [113,189,'B3'], [113,204.6,'F3'],
-      [128,173.4,'F#4'], [128,189,'Bb3'], [128,204.6,'F#3'],
+      [66.6,314.1,'G#4'], [66.6,370.8,'C#4'], [66.6,427.5,'G#3'], [66.6,484.2,'C#3'],
+      [120.5,297.1,'G4'], [120.5,353.8,'C4'], [120.5,410.5,'G3'], [120.5,467.2,'C3'],
+      [174.3,280.1,'B4'], [174.3,336.8,'E4'], [174.3,393.5,'A3'], [174.3,450.2,'E3'], [174.3,506.9,'Eb3'],
+      [228.2,257.4,'Bb4'], [228.2,314.1,'A4'], [228.2,370.8,'D4'], [228.2,427.5,'Eb4'], [228.2,484.2,'D3'],
+      [282.0,297.1,'C5'], [282.0,353.8,'F4'], [282.0,410.5,'B3'], [282.0,467.2,'F3'],
+      [335.9,368.0,'F#4'], [335.9,424.7,'Bb3'], [335.9,481.4,'F#3'],
     ],
     right: [
-      [175,178.6,'Eb6'], [175,194.3,'G#5'], [175,209.9,'C#5'], [175,225.5,'G#4'],
-      [191,173.4,'D6'], [191,189,'G5'], [191,204.6,'C5'], [191,220.2,'G4'],
-      [207,168.2,'E6'], [207,183.8,'B5'], [207,199.3,'E5'], [207,215,'A4'],
-      [222,163.4,'G6'], [222,178.6,'Bb5'], [222,194.3,'A5'], [222,209.9,'D5'], [222,225.5,'Eb5'],
-      [238,173.4,'F6'], [238,189,'C6'], [238,204.6,'F5'], [238,220.2,'B4'],
-      [253,178.6,'F#6'], [253,194.3,'C#6'], [253,209.9,'F#5'], [253,225.5,'Bb4'],
+      [506.0,257.4,'Eb6'], [506.0,314.1,'G#5'], [506.0,370.8,'C#5'], [506.0,427.5,'G#4'], [506.0,484.2,'C#4'],
+      [559.8,240.4,'D6'], [559.8,297.1,'G5'], [559.8,353.8,'C5'], [559.8,410.5,'G4'], [559.8,467.2,'C4'],
+      [613.7,223.4,'E6'], [613.7,280.1,'B5'], [613.7,336.8,'E5'], [613.7,393.5,'A4'], [613.7,450.2,'E4'], [613.7,506.9,'Eb4'],
+      [667.6,257.4,'Bb5'], [667.6,314.1,'A5'], [667.6,370.8,'D5'], [667.6,427.5,'Eb5'], [667.6,484.2,'D4'],
+      [721.4,240.4,'F6'], [721.4,297.1,'C6'], [721.4,353.8,'F5'], [721.4,410.5,'B4'], [721.4,467.2,'F4'],
+      [775.3,311.3,'C#6'], [775.3,368.0,'F#5'], [775.3,424.7,'Bb4'], [775.3,481.4,'F#4'],
     ],
   };
+  const AIR_BUTTON = [452, 506.6];
   const PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
   const toMidi = n => {
     const [, l, a, o] = n.match(/^([A-G])(#|b)?(\d)$/);
@@ -450,10 +453,14 @@
       parent.appendChild(e);
       return e;
     };
-    const X = x => (x - 44) * 4 + 12, Y = y => (y - 146) * 4 + 44;
-    svgEl('text', { class: 'hand', x: X(89), y: 24 }).textContent = 'Left hand';
-    svgEl('text', { class: 'hand', x: X(214), y: 24 }).textContent = 'Right hand';
-    svgEl('text', { class: 'hint', x: 440, y: 402 }).textContent = '↓ hand rest';
+    const X = x => (x - 20) * 1.25, Y = y => (y - 200) * 1.25 + 60;
+    svgEl('text', { class: 'hand', x: X(201), y: 30 }).textContent = 'Left hand';
+    svgEl('text', { class: 'hand', x: X(641), y: 30 }).textContent = 'Right hand';
+    svgEl('text', { class: 'hint', x: X(201), y: 512 }).textContent = '↓ hand rest';
+    svgEl('text', { class: 'hint', x: X(641), y: 512 }).textContent = '↓ hand rest';
+    const air = svgEl('g', { class: 'air' });
+    svgEl('circle', { cx: X(AIR_BUTTON[0]), cy: Y(AIR_BUTTON[1]), r: 20 }, air);
+    svgEl('text', { x: X(AIR_BUTTON[0]), y: Y(AIR_BUTTON[1]) }, air).textContent = 'AIR';
     for (const hand of ['left', 'right']) {
       for (const [x, y, note] of MACCANN[hand]) {
         const midi = toMidi(note);
@@ -465,6 +472,12 @@
       }
     }
   })();
+
+  function rangeText() {
+    const ms = maccannButtons.map(b => b.midi);
+    const ends = [Math.min(...ms), Math.max(...ms)].map(m => spell(m, useFlats));
+    return `${ends.map(sp => sp.helmText).join('–')} / ${ends.map(sp => sp.text).join('–')}`;
+  }
 
   function drawMaccann(midis) {
     const wanted = new Set(midis || []);
@@ -481,7 +494,7 @@
     const name = m => label(spell(m, useFlats), useHelm);
     const missing = midis.filter(m => !hands.has(m));
     const outOfRange = missing.length
-      ? `${missing.map(name).join(' ')} ${missing.length > 1 ? 'are' : 'is'} outside the 46-button Maccann range (c–g''' / C3–G6); larger instruments may have ${missing.length > 1 ? 'them' : 'it'}.`
+      ? `${missing.map(name).join(' ')} ${missing.length > 1 ? 'are' : 'is'} not on this concertina (range ${rangeText()}).`
       : '';
     if (midis.length === 1) {
       const h = hands.get(midis[0]);

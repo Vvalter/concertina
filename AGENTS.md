@@ -21,7 +21,7 @@ Script sections, in order (search for `// ----------`):
 | pitch detection | `detectPitch(buf, sr)`: McLeod Pitch Method (NSDF) on a 2048-sample time buffer. Returns `{rms, freq, clarity}`. |
 | polyphonic detection | `detectNotes(dbSpectrum, sr, fftSize, a4)`: peak-picks a 16384-point FFT, assigns peaks to the nearest note (±35 cents), then walks upward subtracting each peak's expected overtones (`OVERTONES` table). `identifyChord(midis)` template-matches against `CHORD_TYPES`. |
 | staff rendering | `drawStaff(midis, flats)` draws the grand staff as SVG. Notes ≥ middle C go on treble, lower ones on bass. It handles ledger lines, second-interval head offsets, stacked accidentals, and 8va for ≥ C7. |
-| Maccann keyboard | `MACCANN` holds the button positions. `drawMaccann(midis)` highlights buttons and writes the L/R legend. |
+| Maccann keyboard | `MACCANN` holds the button positions (Edeophone 55-key). `drawMaccann(midis)` highlights buttons and writes the L/R legend. |
 | UI state | `current` is `{type:'note', midi}` or `{type:'chord', chord, midis}`. `render(sound)` draws everything. The note-history row is also here. |
 | audio | `getUserMedia` (echo cancellation, noise suppression and AGC all **off**; they wreck instrument audio). Two `AnalyserNode`s: 2048 for the monophonic path, 16384 for chords. |
 | loop | Per animation frame: gate on RMS. If MPM clarity < `CHORD_CLARITY_MAX`, try chord detection first; otherwise fall back to a single note. A result must repeat for `NOTE_CONFIRM` / `CHORD_CONFIRM` frames before it is shown. |
@@ -30,12 +30,12 @@ Test hooks at the bottom of the script: `window.__detectPitch`, `window.__show(s
 
 ## Maccann layout: source and caveats
 
-- Button positions are traced from Robert Gaskins, *How to Play Chords on Any MacCann Duet Concertina* (2001), p. 3, the 46-button chart:
-  http://www.concertina.com/gaskins/chords/Gaskins-How-to-Play-Chords-on-Any-MacCann-Duet-Concertina-3.pdf
-  (Use plain http; https is refused. `pdftotext -bbox` gives the label coordinates.)
-- Only the ~45 "core" buttons common to almost all Maccanns are included. Larger instruments (55/57/62/67/72/81 buttons) add more; see pp. 20–48 of the same PDF.
-- **Unverified assumption:** Gaskins' unmarked octave is taken to be middle C (C4). That gives a left hand of C3–C5 and a right hand of G4–G6. The owner has not yet confirmed this on the real instrument. If it's off by an octave, shift every note in `MACCANN`.
-- The diagram bottom is toward the hand rest (as in Gaskins' charts).
+- The keyboard is the owner's own instrument: a **Lachenal Edeophone, 55 keys, Nr. 2570** (Maccann system). There are 25 buttons on the left and 30 on the right, plus an air button.
+  Source: `Lachenal_Edeophone_55key_Nr2570-3.pdf` in this repo. `MACCANN` holds the PDF's label-centre coordinates (points), extracted with `pdftotext -bbox`. `buildMaccann` scales them with `X = (x-20)*1.25` and `Y = (y-200)*1.25+60`.
+- Octave marks in the chart: none = 4, ¹ = 5, ² = 6, ⁻¹ = 3. That gives a left hand of C3–C5 and a right hand of C4–F6. **Still unverified on the real instrument.** If it's off by an octave, shift every note in `MACCANN`.
+- The diagram bottom is assumed to be toward the hand rest (as in Gaskins' Maccann charts).
+- Background on Maccann layouts in general: Robert Gaskins, *How to Play Chords on Any MacCann Duet Concertina* (2001),
+  http://www.concertina.com/gaskins/chords/Gaskins-How-to-Play-Chords-on-Any-MacCann-Duet-Concertina-3.pdf (use plain http).
 
 ## Tuning knobs (chord / note detection)
 
@@ -65,5 +65,5 @@ Nothing has been tested with a real concertina yet. That is the most valuable ne
 
 - Verify the Maccann octave mapping and the detection thresholds on a real instrument.
 - Optional German naming (H for B, B for B♭, cis/es…).
-- Support larger Maccann layouts (selectable button count).
+- Optionally allow other Maccann layouts (e.g. the standard 46-button one from Gaskins) via a selector.
 - Right-hand notes that duplicate left-hand overtones can go missing from the staff and button display (the chord name is still right).
