@@ -163,11 +163,18 @@ const INJECT = `
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const CHROME = process.env.CHROME || 'google-chrome';
 
+// Close every Chrome even when the run is interrupted (Ctrl-C, timeout), so none are left running
+const chromes = new Set();
+process.on('exit', () => { for (const c of chromes) c.kill(); });
+for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, () => process.exit(130));
+
 async function startWorker(n) {
   const port = 9400 + n + Math.floor(Math.random() * 400);
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'concertina-test-'));
   const proc = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
     '--autoplay-policy=no-user-gesture-required', '--no-first-run', '--mute-audio', 'about:blank'], { stdio: 'ignore' });
+  chromes.add(proc);
+  proc.on('exit', () => chromes.delete(proc));
   let target;
   for (let i = 0; i < 100 && !target; i++) {
     await sleep(100);
@@ -360,11 +367,15 @@ console.log(`${selected.length} cases on ${Math.min(JOBS, selected.length)} Chro
 const queue = [...selected];
 const results = new Map();
 await Promise.all(Array.from({ length: Math.min(JOBS, selected.length) }, async (_, n) => {
-  const w = await startWorker(n);
+  let w = await startWorker(n);
   try {
     for (let c; (c = queue.shift());) {
-      let err;
-      try { err = await runCase(w, c); } catch (e) { err = String(e.message || e); }
+      let err, timer;
+      // A case that hangs (e.g. a stuck Chrome) fails after a minute; its Chrome is replaced
+      const timeout = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timed out after 60 s')), 60000); });
+      try { err = await Promise.race([runCase(w, c), timeout]); } catch (e) { err = String(e.message || e); }
+      clearTimeout(timer);
+      if (err === 'timed out after 60 s') { w.close(); w = await startWorker(n); }
       results.set(c, err);
       process.stdout.write(err ? (c.known ? 'x' : 'F') : '.');
     }
