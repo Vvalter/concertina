@@ -146,6 +146,10 @@
         <button id="btnHelm" aria-pressed="true" title="Helmholtz: c' = eingestrichenes c">c'</button>
         <button id="btnSci" aria-pressed="false" title="Scientific: C4 = middle C">C4</button>
       </div>
+      <div class="seg" role="group" aria-label="Chord detection">
+        <button id="btnChords" aria-pressed="true">Notes + chords</button>
+        <button id="btnNotesOnly" aria-pressed="false" title="Chord detection off">Notes only</button>
+      </div>
       <label>A4 = <input id="a4" type="number" min="400" max="480" step="1" value="440"> Hz</label>
       <button id="start" class="start">Start listening</button>
     </div>
@@ -556,6 +560,7 @@
 
   let useFlats = false;
   let useHelm = true;
+  let useChords = true;
   let current = null;   // { type: 'note', midi } or { type: 'chord', chord, midis }
 
   function setAccidentalMode(flats) {
@@ -572,6 +577,14 @@
     render(current, true);
     renderHistory();
   }
+  function setChordMode(on) {
+    useChords = on;
+    $('btnChords').setAttribute('aria-pressed', String(on));
+    $('btnNotesOnly').setAttribute('aria-pressed', String(!on));
+    if (!on && current?.type === 'chord') setStale();
+  }
+  $('btnChords').onclick = () => setChordMode(true);
+  $('btnNotesOnly').onclick = () => setChordMode(false);
   $('btnHelm').onclick = () => setOctaveMode(true);
   $('btnSci').onclick = () => setOctaveMode(false);
   $('btnSharp').onclick = () => setAccidentalMode(false);
@@ -738,7 +751,7 @@
       const a4 = Number(a4Input.value) || 440;
 
       let chord = null, midis = null;
-      if (rms >= RMS_GATE && clarity < CHORD_CLARITY_MAX) {
+      if (useChords && rms >= RMS_GATE && clarity < CHORD_CLARITY_MAX) {
         fftAnalyser.getFloatFrequencyData(spec);
         const found = findChord(detectNotes(spec, ctx.sampleRate, fftAnalyser.fftSize, a4));
         if (found) ({ chord, midis } = found);

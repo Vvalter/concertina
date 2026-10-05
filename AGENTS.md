@@ -24,7 +24,7 @@ Script sections, in order (search for `// ----------`):
 | Maccann keyboard | `MACCANN` holds the button positions (Edeophone 55-key). `drawMaccann(midis)` highlights buttons and writes the L/R legend. |
 | UI state | `current` is `{type:'note', midi}` or `{type:'chord', chord, midis}`. `render(sound)` draws everything. The note-history row is also here. |
 | audio | `getUserMedia` (echo cancellation, noise suppression and AGC all **off**; they wreck instrument audio). Two `AnalyserNode`s: 2048 for the monophonic path, 16384 for chords. |
-| loop | Per animation frame: gate on RMS. If MPM clarity < `CHORD_CLARITY_MAX`, try chord detection first; otherwise fall back to a single note. A result must repeat for `NOTE_CONFIRM` / `CHORD_CONFIRM` frames before it is shown. |
+| loop | Per animation frame: gate on RMS. If chords are on (`useChords`, the "Notes + chords / Notes only" switch) and MPM clarity < `CHORD_CLARITY_MAX`, try chord detection first; otherwise fall back to a single note. A result must repeat for `NOTE_CONFIRM` / `CHORD_CONFIRM` frames before it is shown. |
 
 The version label (`#version`, currently `V3`) is in the `<h1>`. **Bump it with every change that gets pushed.** It shows the owner which version is loaded, and it drives the update check: on load, and when the tab becomes visible again (at most once a minute), the page re-fetches itself with `fetch(location.href, {cache: 'reload'})`. That bypasses GitHub Pages' 10-minute `max-age` and refreshes the browser cache. If the fetched `#version` differs, it shows a "new version available – Reload" bar. It is skipped on `file://`.
 
