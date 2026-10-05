@@ -19,14 +19,14 @@ Script sections, in order (search for `// ----------`):
 |---|---|
 | note naming | `spell(midi, flats)` gives the letter, accidental, octave and Helmholtz name. `label(sp, helm)` picks the display style. |
 | pitch detection | `detectPitch(buf, sr)`: McLeod Pitch Method (NSDF) on a 2048-sample time buffer. Returns `{rms, freq, clarity}`. |
-| polyphonic detection | `detectNotes(dbSpectrum, sr, fftSize, a4)`: peak-picks a 16384-point FFT, assigns peaks to the nearest note (±35 cents), then walks upward subtracting each peak's expected overtones (`OVERTONES` table). `identifyChord(midis)` template-matches against `CHORD_TYPES`. |
+| polyphonic detection | `detectNotes(dbSpectrum, sr, fftSize, a4)`: peak-picks a 16384-point FFT, assigns peaks to the nearest note (±35 cents), then walks upward subtracting each peak's expected overtones (`OVERTONES` table). Notes on a 2nd–10th harmonic of a lower peak are flagged `overtone`. `findChord(notes)` needs at least two pitch classes from unflagged notes and only uses flagged octaves/fifths to complete a chord. `identifyChord(midis)` template-matches against `CHORD_TYPES`. |
 | staff rendering | `drawStaff(midis, flats)` draws the grand staff as SVG. Notes ≥ middle C go on treble, lower ones on bass. It handles ledger lines, second-interval head offsets, stacked accidentals, and 8va for ≥ C7. |
 | Maccann keyboard | `MACCANN` holds the button positions (Edeophone 55-key). `drawMaccann(midis)` highlights buttons and writes the L/R legend. |
 | UI state | `current` is `{type:'note', midi}` or `{type:'chord', chord, midis}`. `render(sound)` draws everything. The note-history row is also here. |
 | audio | `getUserMedia` (echo cancellation, noise suppression and AGC all **off**; they wreck instrument audio). Two `AnalyserNode`s: 2048 for the monophonic path, 16384 for chords. |
 | loop | Per animation frame: gate on RMS. If MPM clarity < `CHORD_CLARITY_MAX`, try chord detection first; otherwise fall back to a single note. A result must repeat for `NOTE_CONFIRM` / `CHORD_CONFIRM` frames before it is shown. |
 
-The version label (`#version`, currently `V2`) is in the `<h1>`. **Bump it with every change that gets pushed.** It shows the owner which version is loaded, and it drives the update check: on load, and when the tab becomes visible again (at most once a minute), the page re-fetches itself with `fetch(location.href, {cache: 'reload'})`. That bypasses GitHub Pages' 10-minute `max-age` and refreshes the browser cache. If the fetched `#version` differs, it shows a "new version available – Reload" bar. It is skipped on `file://`.
+The version label (`#version`, currently `V3`) is in the `<h1>`. **Bump it with every change that gets pushed.** It shows the owner which version is loaded, and it drives the update check: on load, and when the tab becomes visible again (at most once a minute), the page re-fetches itself with `fetch(location.href, {cache: 'reload'})`. That bypasses GitHub Pages' 10-minute `max-age` and refreshes the browser cache. If the fetched `#version` differs, it shows a "new version available – Reload" bar. It is skipped on `file://`.
 
 Test hooks at the bottom of the script: `window.__detectPitch`, `window.__show(sound)` and `window.__identifyChord`.
 
@@ -41,8 +41,9 @@ Test hooks at the bottom of the script: `window.__detectPitch`, `window.__show(s
 
 ## Tuning knobs (chord / note detection)
 
-- `OVERTONES` (semitone offset and max overtone:fundamental ratio). Higher ratios suppress more spurious notes but also swallow real notes that coincide with overtones, e.g. right hand C5/E5/G5 over left hand C3. The current values were chosen by testing two synthetic timbres (reedy: 2nd harmonic 2× the fundamental; balanced). Not yet tuned on a real concertina.
+- `OVERTONES` (semitone offset and max overtone:fundamental ratio). Higher ratios suppress more spurious notes but also swallow real notes that coincide with overtones, e.g. right hand C5/E5/G5 over left hand C3. The current values were chosen by testing two synthetic timbres (reedy: 2nd harmonic 2× the fundamental; balanced). Measured on the owner's Edeophone (`samples/`), harmonics are often 1–5× the fundamental and up to 13× (left C5). So the ratios can't separate overtones from notes; `HARMONICS` / `findChord` do that instead.
 - Note thresholds inside `detectNotes`: a peak must be ≥ 12 % of the loudest peak to count as a note; peaks down to 3 % still subtract overtones.
+- `CHORD_CONFIRM = 6`: when a single note is released, up to 3 frames can look like a chord.
 - `CHORD_CLARITY_MAX = 0.97`: single notes have MPM clarity ≈ 1.0, chords 0.4–0.93.
 - `RMS_GATE`, `CLARITY_GATE`, `*_CONFIRM` and `SILENCE_FRAMES` live in the detection-smoothing block.
 
@@ -53,7 +54,7 @@ Test hooks at the bottom of the script: `window.__detectPitch`, `window.__show(s
    `google-chrome --headless=new --virtual-time-budget=3000 --window-size=760,1000 --screenshot=out.png file://…`.
 3. **End-to-end with a fake mic:** launch Chrome with `--use-fake-ui-for-media-stream --use-fake-device-for-media-stream --use-file-for-fake-audio-capture=x.wav --autoplay-policy=no-user-gesture-required --remote-debugging-port=…`. Auto-click `#start` and read `#letter` / `#alt` over the DevTools protocol (Node 24 has a global `WebSocket`). A WAV of an Am chord followed by d' was detected correctly.
 
-Nothing has been tested with a real concertina yet. That is the most valuable next step.
+4. **Real samples:** `samples/` has one recording per button of the owner's Edeophone, named `<links|rechts>_Spalte<col>_<row>_<note><octave>` (no octave suffix = 4, `1` = 5, `2` = 6, `-1` = 3). Play each one through the page as a fake mic (override `getUserMedia` with a `MediaStreamDestination` stream), and expect only that note. Chords can be tested by mixing samples with `ffmpeg -filter_complex amix=inputs=N:normalize=0`. As of V3: all 50 single notes are correct, and 22 of 23 mixed chords/intervals are correct. The miss is F3 + F4/A4/C5: the C5 reed's fundamental is weak and is subtracted as F3's 3rd harmonic.
 
 ## Deployment
 

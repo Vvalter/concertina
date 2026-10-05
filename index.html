@@ -136,7 +136,7 @@
     <button id="updateReload">Reload</button>
   </div>
   <header>
-    <h1>Note Listener <span class="version" id="version">V2</span></h1>
+    <h1>Note Listener <span class="version" id="version">V3</span></h1>
     <div class="controls">
       <div class="seg" role="group" aria-label="Accidentals">
         <button id="btnSharp" aria-pressed="true">Sharps ♯</button>
@@ -270,6 +270,10 @@
   const POLY_LOW = 36, POLY_HIGH = 100;                  // C2 .. E7
   // [semitones above the fundamental, how loud that overtone may be relative to the fundamental]
   const OVERTONES = [[12, 2], [19, 1.5], [24, 0.8], [28, 0.5], [31, 0.4], [34, 0.3], [36, 0.25]];
+  // Semitone positions of the 2nd-10th harmonics. On the Edeophone these can be up to ~13x louder
+  // than the fundamental, so loudness alone can't separate a played note from an overtone.
+  const HARMONICS = [12, 19, 24, 28, 31, 34, 36, 38, 40];
+  const OCTAVES_FIFTHS = new Set([12, 19, 24, 31, 36]);
   const noteFreq = (m, a4) => a4 * Math.pow(2, (m - 69) / 12);
 
   function detectNotes(db, sampleRate, fftSize, a4) {
@@ -300,10 +304,33 @@
       for (const [iv, ratio] of OVERTONES) {
         if (m + iv < residual.length) residual[m + iv] = Math.max(0, residual[m + iv] - amp[m] * ratio);
       }
-      if (residual[m] >= 0.12 * maxAmp) notes.push({ midi: m, amp: residual[m] });
+      if (residual[m] < 0.12 * maxAmp) continue;
+      // Flag notes that sit on a harmonic of a lower peak (one not more than 20x quieter than this one)
+      const note = { midi: m, amp: residual[m], overtone: false, octaveOrFifth: false };
+      for (const iv of HARMONICS) {
+        const p = m - iv;
+        if (p < POLY_LOW || amp[p] < 0.03 * maxAmp || amp[p] < amp[m] / 20) continue;
+        note.overtone = true;
+        if (OCTAVES_FIFTHS.has(iv)) note.octaveOrFifth = true;
+      }
+      notes.push(note);
     }
-    // Keep the strongest six, in pitch order
-    return notes.sort((a, b) => b.amp - a.amp).slice(0, 6).sort((a, b) => a.midi - b.midi);
+    // Keep six, preferring notes that can't be overtones, then the strongest; return them in pitch order
+    return notes.sort((a, b) => a.overtone - b.overtone || b.amp - a.amp).slice(0, 6).sort((a, b) => a.midi - b.midi);
+  }
+
+  // Chord from detectNotes() output, as { chord, midis }, or null. A single reed's harmonics spell a
+  // dominant 7th chord on their own, so at least two pitch classes must come from notes that can't be
+  // overtones. A played octave or fifth that coincides with a lower note's harmonic (e.g. G4 over C3)
+  // is used only when the chord can't be completed without it.
+  function findChord(notes) {
+    const real = notes.filter(n => !n.overtone);
+    if (new Set(real.map(n => n.midi % 12)).size < 2) return null;
+    const chord = identifyChord(real.map(n => n.midi)) ||
+      identifyChord(notes.filter(n => !n.overtone || n.octaveOrFifth).map(n => n.midi));
+    if (!chord) return null;
+    const pcs = new Set(chord.type.iv.map(i => (chord.root + i) % 12));
+    return { chord, midis: notes.filter(n => !n.overtone || pcs.has(n.midi % 12)).map(n => n.midi) };
   }
 
   const CHORD_TYPES = [
@@ -679,7 +706,7 @@
 
   // Detection smoothing
   const RMS_GATE = 0.01, CLARITY_GATE = 0.85, SILENCE_FRAMES = 12;
-  const NOTE_CONFIRM = 3, CHORD_CONFIRM = 4;
+  const NOTE_CONFIRM = 3, CHORD_CONFIRM = 6;  // chords need longer: a note's release can briefly look like one
   // A clean single tone is very periodic; below this clarity we also look for chords
   const CHORD_CLARITY_MAX = 0.97;
   let candidateKey = null, candidateCount = 0, silentCount = 0;
@@ -713,8 +740,8 @@
       let chord = null, midis = null;
       if (rms >= RMS_GATE && clarity < CHORD_CLARITY_MAX) {
         fftAnalyser.getFloatFrequencyData(spec);
-        midis = detectNotes(spec, ctx.sampleRate, fftAnalyser.fftSize, a4).map(n => n.midi);
-        chord = identifyChord(midis);
+        const found = findChord(detectNotes(spec, ctx.sampleRate, fftAnalyser.fftSize, a4));
+        if (found) ({ chord, midis } = found);
       }
 
       if (chord) {
