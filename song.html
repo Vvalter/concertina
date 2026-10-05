@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V5">
+<link rel="stylesheet" href="concertina.css?v=V6">
 <style>
   a.back { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
   .controls input[type=range] { width: 9em; accent-color: var(--accent); }
@@ -43,6 +43,13 @@
     .keys .now-line { margin: 0 0 4px; }
     .now-note { font-size: 1.6rem; }
   }
+  /* Play/Stop stays in view: the header sticks to the top on larger screens; on phones a second
+     button sits in the sticky keyboard bar */
+  .play-mini { display: none; margin-left: auto; padding: 6px 14px; align-self: center; }
+  @media (max-width: 560px) { .play-mini { display: block; } }
+  @media (min-width: 561px) {
+    header { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 8px 0; margin-top: -8px; }
+  }
 </style>
 </head>
 <body>
@@ -55,7 +62,7 @@
     <div class="controls">
       <label>Tempo <input id="tempo" type="range" min="50" max="160" step="5" value="100">
         <span class="tempo-value" id="tempoValue">100 bpm</span></label>
-      <button id="play" class="start">▶ Play</button>
+      <button id="play" class="start" data-play>▶ Play</button>
     </div>
   </header>
 
@@ -67,6 +74,7 @@
     <div class="now-line">
       <div class="now-note" id="nowNote">–</div>
       <div class="next-note" id="nextNote"></div>
+      <button class="start play-mini" data-play>▶ Play</button>
     </div>
     <p class="sub">The button to press is filled, the next one is dashed. Click a note in the music to start from there.</p>
     <svg class="maccann" id="maccann" viewBox="0 0 1000 520" aria-label="Maccann duet keyboard"></svg>
@@ -75,7 +83,7 @@
   <div class="status" id="status"></div>
 </main>
 
-<script src="concertina.js?v=V5"></script>
+<script src="concertina.js?v=V6"></script>
 <script>
 (() => {
   const { SVG_NS, ACC, spell, label, toMidi, buildMaccann, sampleFor, loopCache, playNote } = Concertina;
@@ -190,7 +198,8 @@
     // Keep the current note visible (above the sticky keyboard on phones)
     const r = notes[i].el?.getBoundingClientRect(), keys = document.querySelector('.keys').getBoundingClientRect();
     const visibleBottom = getComputedStyle(document.querySelector('.keys')).position === 'sticky' ? keys.top : innerHeight;
-    if (playing && r && (r.top < 0 || r.bottom > visibleBottom)) scrollBy({ top: r.top - 60, behavior: 'smooth' });
+    const visibleTop = stickyTop();
+    if (playing && r && (r.top < visibleTop || r.bottom > visibleBottom)) scrollBy({ top: r.top - visibleTop - 50, behavior: 'smooth' });
     const now = notes[i], next = notes[i + 1];
     for (const b of buttons) {
       b.g.classList.toggle('on', b === buttonFor(now.midi));
@@ -200,6 +209,11 @@
     $('nowNote').textContent = nowName;
     $('nextNote').textContent = `${handName[buttonFor(now.midi).hand]}` + (next ? ` · next: ${noteName(next.midi)}` : ' · last note');
   }
+
+  const stickyTop = () => {
+    const h = document.querySelector('header');
+    return getComputedStyle(h).position === 'sticky' ? h.getBoundingClientRect().bottom : 0;
+  };
 
   // ---------- playback ----------
   let ctx = null, out = null, getLoop = null, voices = [], startTime = 0, startBeat = 0, rafId = 0, playing = false;
@@ -216,8 +230,7 @@
     }
     if (ctx.state !== 'running') await ctx.resume();
     playing = true;
-    $('play').textContent = '■ Stop';
-    $('play').classList.add('listening');
+    setPlayButtons(true);
     $('status').textContent = 'Loading…';
     const todo = notes.slice(from);
     let sounds;
@@ -265,11 +278,14 @@
       try { src.stop(ctx.currentTime + 0.1); } catch { /* not started yet */ }
     }
     voices = [];
-    $('play').textContent = '▶ Play';
-    $('play').classList.remove('listening');
+    setPlayButtons(false);
   }
 
-  $('play').onclick = () => (playing ? stop() : play(currentIdx));
+  const playButtons = document.querySelectorAll('[data-play]');
+  function setPlayButtons(on) {
+    for (const b of playButtons) { b.textContent = on ? '■ Stop' : '▶ Play'; b.classList.toggle('listening', on); }
+  }
+  for (const b of playButtons) b.onclick = () => (playing ? stop() : play(currentIdx));
   document.addEventListener('keydown', e => {
     if (e.key === ' ' && e.target === document.body) { e.preventDefault(); $('play').click(); }
   });

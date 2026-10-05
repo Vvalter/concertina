@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V5">
+<link rel="stylesheet" href="concertina.css?v=V6">
 <style>
   a.back { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
   .intro { color: var(--muted); font-size: 0.9rem; margin: 0; line-height: 1.45; }
@@ -47,6 +47,13 @@
     .keys .now-line { margin: 0 0 4px; }
     .now-hand { font-size: 1rem; }
   }
+  /* Play/Stop stays in view: the header sticks to the top on larger screens; on phones a second
+     button sits in the sticky keyboard bar */
+  .play-mini { display: none; margin-left: auto; padding: 6px 14px; align-self: center; }
+  @media (max-width: 560px) { .play-mini { display: block; } }
+  @media (min-width: 561px) {
+    header { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 8px 0; margin-top: -8px; }
+  }
 </style>
 </head>
 <body>
@@ -59,7 +66,7 @@
     <div class="controls">
       <label>Tempo <input id="tempo" type="range" min="60" max="160" step="4" value="112">
         <span class="tempo-value" id="tempoValue">112 bpm</span></label>
-      <button id="play" class="start">▶ Play</button>
+      <button id="play" class="start" data-play>▶ Play</button>
     </div>
   </header>
 
@@ -79,6 +86,7 @@
       <div class="now-hand" id="nowRight"><span>R</span>–</div>
       <div class="now-hand" id="nowLeft"><span>L</span>–</div>
       <div class="now-section" id="nowSection"></div>
+      <button class="start play-mini" data-play>▶ Play</button>
     </div>
     <p class="sub">Gefüllt: jetzt drücken · gestrichelt: als Nächstes. Auf eine Note tippen, um dort anzufangen.</p>
     <svg class="maccann" id="maccann" viewBox="0 0 1000 520" aria-label="Maccann duet keyboard"></svg>
@@ -87,7 +95,7 @@
   <div class="status" id="status"></div>
 </main>
 
-<script src="concertina.js?v=V5"></script>
+<script src="concertina.js?v=V6"></script>
 <script>
 (() => {
   const { SVG_NS, ACC, spell, label, toMidi, buildMaccann, sampleFor, loopCache, playNote } = Concertina;
@@ -287,9 +295,15 @@
     if (playing && el) {
       const r = el.getBoundingClientRect();
       const bottom = getComputedStyle(keys).position === 'sticky' ? keys.getBoundingClientRect().top : innerHeight;
-      if (r.top < 0 || r.bottom > bottom) scrollBy({ top: r.top - 60, behavior: 'smooth' });
+      const top = stickyTop();
+      if (r.top < top || r.bottom > bottom) scrollBy({ top: r.top - top - 50, behavior: 'smooth' });
     }
   }
+
+  const stickyTop = () => {
+    const h = document.querySelector('header');
+    return getComputedStyle(h).position === 'sticky' ? h.getBoundingClientRect().bottom : 0;
+  };
 
   // ---------- playback ----------
   let ctx = null, out = null, getLoop = null, voices = [], rafId = 0, playing = false, timeline = null;
@@ -355,8 +369,7 @@
     }
     if (ctx.state !== 'running') await ctx.resume();
     playing = true;
-    $('play').textContent = '■ Stop';
-    $('play').classList.add('listening');
+    setPlayButtons(true);
     $('status').textContent = 'Loading…';
     const todo = events.filter(e => e.beat >= fromBeat && e.midis.length);
     let sounds;
@@ -418,11 +431,14 @@
       try { src.stop(ctx.currentTime + 0.15); } catch { /* not started */ }
     }
     voices = [];
-    $('play').textContent = '▶ Play';
-    $('play').classList.remove('listening');
+    setPlayButtons(false);
   }
 
-  $('play').onclick = () => (playing ? stop() : play(nowBeat < totalBeats - 0.01 ? Math.floor(nowBeat) : 0));
+  const playButtons = document.querySelectorAll('[data-play]');
+  function setPlayButtons(on) {
+    for (const b of playButtons) { b.textContent = on ? '■ Stop' : '▶ Play'; b.classList.toggle('listening', on); }
+  }
+  for (const b of playButtons) b.onclick = () => (playing ? stop() : play(nowBeat < totalBeats - 0.01 ? Math.floor(nowBeat) : 0));
   document.addEventListener('keydown', e => {
     if (e.key === ' ' && e.target === document.body) { e.preventDefault(); $('play').click(); }
   });

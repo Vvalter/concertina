@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V5">
+<link rel="stylesheet" href="concertina.css?v=V6">
 <style>
   a.nav { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
   .update {
@@ -20,7 +20,6 @@
     background: #fff; color: var(--accent); cursor: pointer;
   }
   .display { display: grid; grid-template-columns: 1fr 1.3fr; gap: 20px; align-items: center; }
-  @media (max-width: 560px) { .display { grid-template-columns: 1fr; } }
   .name { text-align: center; transition: opacity 0.3s; }
   .name.stale { opacity: 0.35; }
   .letter { font-size: clamp(5rem, 22vw, 8.5rem); font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
@@ -64,6 +63,45 @@
   .practice-bar button { cursor: pointer; }
   .practice-bar button[hidden] { display: none; }
   .practice-msg { margin: 0 0 12px; font-weight: 600; min-height: 1.3em; }
+  .settings { display: contents; }
+  .settings-btn { display: none; }
+  /* Phones: header in one row (settings behind ⚙), letter and staff side by side, buttons right
+     below, so the note and the keyboard fit on one screen */
+  @media (max-width: 560px) {
+    body { padding: 10px 10px 16px; }
+    main { gap: 10px; }
+    header { gap: 8px; }
+    h1 { font-size: 1.1rem; }
+    header .links { display: none; }
+    header.open .links { display: block; margin-top: 2px; }
+    .controls { gap: 8px; }
+    .settings { display: none; }
+    header.open .controls { width: 100%; }
+    header.open .settings { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; width: 100%; order: 3; }
+    .settings-btn {
+      display: block; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink);
+      font-size: 1.1rem; padding: 6px 10px; cursor: pointer;
+    }
+    header.open .settings-btn { background: var(--accent); color: #fff; border-color: var(--accent); }
+    button.start { padding: 8px 14px; }
+    .card { padding: 10px 12px; border-radius: 12px; }
+    .display { grid-template-columns: 0.85fr 1.15fr; gap: 6px; }
+    .letter { font-size: clamp(3.2rem, 17vw, 4.6rem); }
+    .letter.chord { font-size: clamp(1.7rem, 8.5vw, 2.4rem); }
+    .alt { font-size: 0.8rem; }
+    .freq { font-size: 0.8rem; margin-top: 2px; }
+    svg.staff { max-height: 210px; }
+    .meter { height: 28px; margin-top: 0; }
+    .meter .track { top: 11px; }
+    .meter .zone { top: 9px; }
+    .meter .tick { top: 5px; }
+    .meter .needle { top: 1px; }
+    .meter-labels { font-size: 0.7rem; }
+    .card h2 { display: none; }
+    .card .sub { font-size: 0.75rem; margin: 0 0 6px; }
+    .practice-bar { margin: 0 0 4px; font-size: 0.85rem; }
+    .practice-msg { margin: 0 0 4px; font-size: 0.9rem; }
+  }
   .practice-msg[hidden] { display: none; }
   .practice-msg.good { color: var(--good); }
   .practice-msg.bad { color: var(--bad); }
@@ -80,10 +118,12 @@
   </div>
   <header>
     <div>
-      <h1>Note Listener <span class="version" id="version">V5</span></h1>
-      <a class="nav" href="song.html">♪ Hänschen klein</a> · <a class="nav" href="duet.html">♫ Hänschen klein – Duett</a>
+      <h1>Note Listener <span class="version" id="version">V6</span></h1>
+      <div class="links"><a class="nav" href="song.html">♪ Hänschen klein</a> · <a class="nav" href="duet.html">♫ Hänschen klein – Duett</a></div>
     </div>
     <div class="controls">
+      <!-- On phones the settings fold away behind ⚙; elsewhere the wrapper doesn't affect the layout -->
+      <div class="settings">
       <div class="seg" role="group" aria-label="Mode">
         <button id="btnListen" aria-pressed="true" title="Listen to the microphone">Microphone</button>
         <button id="btnPlay" aria-pressed="false" title="Tap a button on the diagram to hear it">Play buttons</button>
@@ -101,6 +141,8 @@
         <button id="btnNotesOnly" aria-pressed="false" title="Chord detection off">Notes only</button>
       </div>
       <label>A4 = <input id="a4" type="number" min="400" max="480" step="1" value="440"> Hz</label>
+      </div>
+      <button id="settingsBtn" class="settings-btn" aria-expanded="false" aria-label="Settings">⚙</button>
       <button id="start" class="start">Start listening</button>
     </div>
   </header>
@@ -145,7 +187,7 @@
   <div class="history" id="history"></div>
 </main>
 
-<script src="concertina.js?v=V5"></script>
+<script src="concertina.js?v=V6"></script>
 <script>
 (() => {
   const { ACC, spell, label, buildMaccann, SAMPLE_FILES, sampleFor, loopCache } = Concertina;
@@ -469,6 +511,10 @@
     if (!on && current?.type === 'chord') setStale();
     saveSettings();
   }
+  $('settingsBtn').onclick = () => {
+    const open = document.querySelector('header').classList.toggle('open');
+    $('settingsBtn').setAttribute('aria-expanded', String(open));
+  };
   $('btnChords').onclick = () => setChordMode(true);
   $('btnNotesOnly').onclick = () => setChordMode(false);
   $('btnHelm').onclick = () => setOctaveMode(true);
