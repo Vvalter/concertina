@@ -23,7 +23,10 @@ Script sections, in order (search for `// ----------`):
 | staff rendering | `drawStaff(midis, flats)` draws the grand staff as SVG. Notes ≥ middle C go on treble, lower ones on bass. It handles ledger lines, second-interval head offsets, stacked accidentals, and 8va for ≥ C7. |
 | Maccann keyboard | `MACCANN` holds the button positions (Edeophone 55-key). `drawMaccann(midis)` highlights buttons and writes the L/R legend. |
 | UI state | `current` is `{type:'note', midi}` or `{type:'chord', chord, midis}`. `render(sound)` draws everything. The note-history row is also here. |
+| chord practice | "Akkord üben" dropdown (`PRACTICE_CHORDS`, German names). `startPractice` outlines a close root-position grip per hand (left from octave 3, right from octave 4); `drawMaccann` defers to `drawPractice` while practising. `setPracticeHeard` turns heard buttons green/red and writes the German verdict; while notes only drop out the verdict stays. Exit with × Beenden, "– aus –" or Esc. |
+| settings | `saveSettings()` stores ♯/♭, c'/C4, chords on/off, A4, practice chord and mode in `localStorage` (`noteListener.settings`); restored at the end of the script. |
 | audio | `getUserMedia` (echo cancellation, noise suppression and AGC all **off**; they wreck instrument audio). Two `AnalyserNode`s: 2048 for the monophonic path, 16384 for chords. |
+| play mode | "Microphone / Play buttons" switch. Tapping a diagram button toggles a looped recording from `samples/` (`SAMPLE_FILES`; buttons without one borrow the other hand's or a re-pitched neighbour). `makeLoop` takes the longest steady stretch, flattens its loudness and picks the best-matching loop point with an 80 ms crossfade. Needs http(s): browsers block `fetch` on `file://`. |
 | loop | Per animation frame: gate on RMS. If chords are on (`useChords`, the "Notes + chords / Notes only" switch) and MPM clarity < `CHORD_CLARITY_MAX`, try chord detection first; otherwise fall back to a single note. A result must repeat for `NOTE_CONFIRM` / `CHORD_CONFIRM` frames before it is shown. |
 
 The version label (`#version`, currently `V3`) is in the `<h1>`. **Bump it with every change that gets pushed.** It shows the owner which version is loaded, and it drives the update check: on load, and when the tab becomes visible again (at most once a minute), the page re-fetches itself with `fetch(location.href, {cache: 'reload'})`. That bypasses GitHub Pages' 10-minute `max-age` and refreshes the browser cache. If the fetched `#version` differs, it shows a "new version available – Reload" bar. It is skipped on `file://`.
@@ -47,14 +50,18 @@ Test hooks at the bottom of the script: `window.__detectPitch`, `window.__show(s
 - `CHORD_CLARITY_MAX = 0.97`: single notes have MPM clarity ≈ 1.0, chords 0.4–0.93.
 - `RMS_GATE`, `CLARITY_GATE`, `*_CONFIRM` and `SILENCE_FRAMES` live in the detection-smoothing block.
 
-## Testing (no test suite is committed; these recipes were used)
+## Testing
 
-1. **Algorithms in Node:** slice the script between `const MIN_FREQ` and `// ---------- staff rendering`, then wrap it in `new Function(body + '; return {detectPitch, detectNotes, identifyChord}')`. Synthesize harmonic tones, apply a Blackman window + FFT, and convert to dB (magnitude / N) to mimic `AnalyserNode.getFloatFrequencyData`. Expect correct names for C, Am, G7, C/E, D, F (low), B♭7, Bdim and a two-hand C; single notes, two-note intervals and octaves must give no chord.
-2. **Rendering:** make a copy of the page that calls `window.__show({type:'chord', chord: __identifyChord([52,55,60]), midis:[52,55,60]})`. Then run
-   `google-chrome --headless=new --virtual-time-budget=3000 --window-size=760,1000 --screenshot=out.png file://…`.
-3. **End-to-end with a fake mic:** launch Chrome with `--use-fake-ui-for-media-stream --use-fake-device-for-media-stream --use-file-for-fake-audio-capture=x.wav --autoplay-policy=no-user-gesture-required --remote-debugging-port=…`. Auto-click `#start` and read `#letter` / `#alt` over the DevTools protocol (Node 24 has a global `WebSocket`). A WAV of an Am chord followed by d' was detected correctly.
+`node tests/run.mjs` (about a minute; `-j N` sets parallel Chrome instances, default 6; extra words filter cases by group or name, e.g. `node tests/run.mjs chord practice`). It serves the repo, opens the unmodified `index.html` in headless Chrome, and plays recordings from `samples/` into it as a fake microphone (several at once for chords). Groups:
+- `single`: each of the 50 recordings must show only its own note.
+- `chord`: 23 chords and intervals mixed from recordings must show the right chord, intervals no chord. One known failure: F3 + F4/A4/C5 (the C5 reed's weak fundamental is subtracted as F3's 3rd harmonic).
+- `notes-only`: with chord detection off, no chord is shown.
+- `practice`, `practice-single`: practice-mode verdicts and green/red buttons.
+- `play`: tapped buttons sound at the right pitch until tapped again; switching to Microphone stops them.
 
-4. **Real samples:** `samples/` has one recording per button of the owner's Edeophone, named `<links|rechts>_Spalte<col>_<row>_<note><octave>` (no octave suffix = 4, `1` = 5, `2` = 6, `-1` = 3). Play each one through the page as a fake mic (override `getUserMedia` with a `MediaStreamDestination` stream), and expect only that note. Chords can be tested by mixing samples with `ffmpeg -filter_complex amix=inputs=N:normalize=0`. As of V3: all 50 single notes are correct, and 22 of 23 mixed chords/intervals are correct. The miss is F3 + F4/A4/C5: the C5 reed's fundamental is weak and is subtracted as F3's 3rd harmonic.
+Sample names: `<links|rechts>_Spalte<col>_<row>_<note><octave>` (no octave suffix = 4, `1` = 5, `2` = 6, `-1` = 3). The left hand's column 4 (D3, E♭4, D4, A4, B♭4) has no recordings. Needs Node 22+ and Google Chrome (`CHROME=` to override).
+
+For a quick algorithm check without a browser, slice the script between `const MIN_FREQ` and `// ---------- staff rendering` and wrap it in `new Function(body + '; return {detectPitch, detectNotes, findChord, identifyChord}')`.
 
 ## Deployment
 
