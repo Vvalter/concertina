@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V11">
+<link rel="stylesheet" href="concertina.css?v=V12">
 <style>
   a.nav { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
   .update {
@@ -36,6 +36,8 @@
   .staff .l { stroke: var(--ink); stroke-width: 1.2; }
   .staff .glyph { fill: var(--ink); font-family: "Noto Music", "Bravura", "Segoe UI Symbol", "Apple Symbols", serif; }
   .staff .head { fill: none; stroke: var(--ink); stroke-width: 2.6; }
+  .staff .head.good { stroke: var(--good); stroke-width: 3.2; }
+  .staff .head.bad { stroke: var(--bad); stroke-width: 3.2; }
   .staff .small { fill: var(--muted); font: italic 600 12px system-ui, sans-serif; }
 
   .meter { position: relative; height: 34px; margin-top: 6px; }
@@ -61,6 +63,8 @@
     padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); font: inherit;
   }
   .practice-bar button { cursor: pointer; }
+  .practice-bar .hear { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  .practice-bar .hear.on { background: var(--accent); color: #fff; border-color: var(--accent); }
   .practice-bar button[hidden] { display: none; }
   .practice-msg { margin: 0 0 12px; font-weight: 600; min-height: 1.3em; }
   .settings { display: contents; }
@@ -119,7 +123,7 @@
   </div>
   <header>
     <div>
-      <h1>Note Listener <span class="version" id="version">V11</span></h1>
+      <h1>Note Listener <span class="version" id="version">V12</span></h1>
       <div class="links"><a class="nav" href="song.html">♪ Hänschen klein</a> · <a class="nav" href="duet.html">♫ Hänschen klein – Duett</a></div>
     </div>
     <div class="controls">
@@ -178,6 +182,7 @@
     <div class="practice-bar">
       <label for="practice">Akkord üben</label>
       <select id="practice"><option value="">– aus –</option></select>
+      <button id="practiceHear" class="hear" hidden title="Gedrückt halten: der Akkord erklingt">▶ Anhören (halten)</button>
       <button id="practiceOff" hidden title="Übung beenden (Esc)">× Beenden</button>
     </div>
     <p class="practice-msg" id="practiceMsg" hidden></p>
@@ -190,10 +195,10 @@
   <div class="history" id="history"></div>
 </main>
 
-<script src="concertina.js?v=V11"></script>
+<script src="concertina.js?v=V12"></script>
 <script>
 (() => {
-  const { ACC, spell, label, buildMaccann, SAMPLE_FILES, sampleFor, loopCache } = Concertina;
+  const { ACC, spell, label, buildMaccann, SAMPLE_FILES, sampleFor, loopCache, playNote } = Concertina;
 
   // ---------- pitch detection (McLeod Pitch Method / NSDF) ----------
   const MIN_FREQ = 40, MAX_FREQ = 4200;
@@ -372,7 +377,8 @@
   }
 
   // Grand staff: notes from middle C up go on the treble staff, lower ones on the bass staff.
-  function drawStaff(midis, flats) {
+  // cls(midi): optional extra class for a note head ('good' / 'bad' in chord practice)
+  function drawStaff(midis, flats, cls = () => '') {
     staff.textContent = '';
     for (const bottom of [TREBLE_BOTTOM, BASS_BOTTOM]) {
       for (let i = 0; i < 5; i++) {
@@ -394,15 +400,15 @@
       const bottom = treble ? TREBLE_BOTTOM : BASS_BOTTOM;
       const ref = treble ? 4 * 7 + 2 /* E4 */ : 2 * 7 + 4 /* G2 */;
       const step = sp.octave * 7 + sp.letterIndex - ref;   // 0 = bottom line, 8 = top line
-      return { sp, bottom, step, ottava, y: bottom - step * (S / 2), x: NOTE_X };
+      return { midi, sp, bottom, step, ottava, y: bottom - step * (S / 2), x: NOTE_X };
     });
 
     for (const bottom of [TREBLE_BOTTOM, BASS_BOTTOM]) {
       const group = notes.filter(n => n.bottom === bottom).sort((a, b) => a.step - b.step);
       if (!group.length) continue;
-      // Seconds can't share a column: shift the upper note of each pair to the right
+      // Seconds (and E♭ + E, on the same step) can't share a column: shift the upper note to the right
       for (let i = 1; i < group.length; i++) {
-        if (group[i].step - group[i - 1].step === 1 && group[i - 1].x === NOTE_X) group[i].x = NOTE_X + 15;
+        if (group[i].step - group[i - 1].step <= 1 && group[i - 1].x === NOTE_X) group[i].x = NOTE_X + 15;
       }
       const shifted = group.some(n => n.x !== NOTE_X);
       const lx1 = NOTE_X - 13, lx2 = NOTE_X + 13 + (shifted ? 15 : 0);
@@ -419,7 +425,7 @@
 
     // Whole-note heads
     for (const n of notes) {
-      el('ellipse', { class: 'head', cx: n.x, cy: n.y, rx: 7.2, ry: 4.6, transform: `rotate(-22 ${n.x} ${n.y})` });
+      el('ellipse', { class: `head ${cls(n.midi)}`, cx: n.x, cy: n.y, rx: 7.2, ry: 4.6, transform: `rotate(-22 ${n.x} ${n.y})` });
     }
 
     // Accidentals, from the top down, in the first column where they don't collide
@@ -529,6 +535,7 @@
   const chordName = c => pcName(c.root) + c.type.suffix + (c.bass !== c.root ? '/' + pcName(c.bass) : '');
 
   function render(sound, keepStale) {
+    if (practice) return drawPracticeTop();  // the top shows the chord being practised
     if (!sound) { drawStaff(null); drawMaccann(null); return; }
     if (sound.type === 'note') {
       const sp = spell(sound.midi, useFlats);
@@ -564,9 +571,11 @@
   }
 
   function setStale() {
-    nameBox.classList.add('stale');
-    staff.classList.add('stale');
-    if (!practice) maccann.classList.add('stale');
+    if (!practice) {
+      nameBox.classList.add('stale');
+      staff.classList.add('stale');
+      maccann.classList.add('stale');
+    }
     clearTuning();
   }
 
@@ -606,14 +615,35 @@
   // ---------- chord practice ----------
   // Pick a chord; the diagram shows a suggested grip for each hand, and while playing, heard chord
   // tones turn green and other notes red.
-  // [German name, root pitch class, CHORD_TYPES suffix, spelled with flats]
+  // Chord kinds: intervals that must sound, optional ones (a 9th chord's 5th is usually left out, but
+  // playing it isn't wrong) and the German description shown above the staff
+  const PRACTICE_KINDS = {
+    dur:  { iv: [0, 4, 7],      de: 'Dur-Dreiklang' },
+    moll: { iv: [0, 3, 7],      de: 'Moll-Dreiklang' },
+    7:    { iv: [0, 4, 7, 10],  de: 'Dominantseptakkord' },
+    maj7: { iv: [0, 4, 7, 11],  de: 'Dur mit großer Septime' },
+    m7:   { iv: [0, 3, 7, 10],  de: 'Moll-Septakkord' },
+    m7b5: { iv: [0, 3, 6, 10],  de: 'halbverminderter Septakkord' },
+    6:    { iv: [0, 4, 7, 9],   de: 'Dur mit Sexte' },
+    dim7: { iv: [0, 3, 6, 9],   de: 'verminderter Septakkord' },
+    9:    { iv: [0, 4, 10, 14], opt: [7], de: 'Septnonakkord (Quinte kann fehlen)' },
+    '7#9': { iv: [0, 4, 10, 15], opt: [7], de: 'Septakkord mit übermäßiger None (Hendrix-Akkord)' },
+  };
+  // [German name, root pitch class, kind, spelled with flats]
   const PRACTICE_CHORDS = [
-    ['Dur', [['C-Dur', 0, ''], ['G-Dur', 7, ''], ['D-Dur', 2, ''], ['A-Dur', 9, ''], ['E-Dur', 4, ''],
-             ['F-Dur', 5, '', true], ['B-Dur', 10, '', true], ['Es-Dur', 3, '', true]]],
-    ['Moll', [['a-Moll', 9, 'm'], ['e-Moll', 4, 'm'], ['d-Moll', 2, 'm', true], ['h-Moll', 11, 'm'],
-              ['g-Moll', 7, 'm', true], ['c-Moll', 0, 'm', true], ['f-Moll', 5, 'm', true], ['fis-Moll', 6, 'm']]],
+    ['Dur', [['C-Dur', 0, 'dur'], ['G-Dur', 7, 'dur'], ['D-Dur', 2, 'dur'], ['A-Dur', 9, 'dur'], ['E-Dur', 4, 'dur'],
+             ['F-Dur', 5, 'dur', true], ['B-Dur', 10, 'dur', true], ['Es-Dur', 3, 'dur', true]]],
+    ['Moll', [['a-Moll', 9, 'moll'], ['e-Moll', 4, 'moll'], ['d-Moll', 2, 'moll', true], ['h-Moll', 11, 'moll'],
+              ['g-Moll', 7, 'moll', true], ['c-Moll', 0, 'moll', true], ['f-Moll', 5, 'moll', true], ['fis-Moll', 6, 'moll']]],
     ['Septakkorde', [['C7', 0, '7', true], ['G7', 7, '7'], ['D7', 2, '7'], ['A7', 9, '7'], ['E7', 4, '7'],
                      ['F7', 5, '7', true], ['H7', 11, '7']]],
+    // II–V–I in C, F and G, plus the usual colours
+    ['Jazz', [['Cmaj7', 0, 'maj7'], ['Fmaj7', 5, 'maj7'], ['Gmaj7', 7, 'maj7'], ['Dm7', 2, 'm7'], ['Em7', 4, 'm7'],
+              ['Am7', 9, 'm7'], ['Gm7', 7, 'm7', true], ['Hm7♭5', 11, 'm7b5'], ['C6', 0, '6'], ['F6', 5, '6'],
+              ['Cdim7', 0, 'dim7', true]]],
+    // The I, IV and V chords of a blues in C, G and A
+    ['Blues', [['C9', 0, '9', true], ['F9', 5, '9', true], ['G9', 7, '9'], ['D9', 2, '9'], ['A9', 9, '9'],
+               ['E9', 4, '9'], ['E7♯9', 4, '7#9'], ['A7♯9', 9, '7#9'], ['Cm7', 0, 'm7', true], ['Fm7', 5, 'm7', true]]],
   ];
   const practiceSel = $('practice'), practiceMsg = $('practiceMsg');
   const MACCANN_INFO = maccannInfo.textContent;
@@ -627,18 +657,20 @@
   function startPractice(name) {
     const entry = PRACTICE_CHORDS.flatMap(([, chords]) => chords).find(c => c[0] === name);
     if (!entry) return stopPractice();
-    const [, root, suffix, flats = false] = entry;
-    const type = CHORD_TYPES.find(t => t.suffix === suffix);
+    stopChordSound();
+    const [, root, kind, flats = false] = entry;
+    const { iv, opt = [], de } = PRACTICE_KINDS[kind];
     // Suggested grip: root position, close voicing; left hand from octave 3, right hand from octave 4
-    const grip = { left: type.iv.map(i => 48 + root + i), right: type.iv.map(i => 60 + root + i) };
+    const grip = { left: iv.map(i => 48 + root + i), right: iv.map(i => 60 + root + i) };
+    const pcs = new Set(iv.map(i => (root + i) % 12));
     practice = {
-      name, grip, flats,
-      pcs: new Set(type.iv.map(i => (root + i) % 12)),
+      name, grip, flats, de, pcs,
+      allowed: new Set([...pcs, ...opt.map(i => (root + i) % 12)]),  // pcs plus optional tones
       targets: new Set(maccannButtons.filter(b => grip[b.hand].includes(b.midi))),
       heard: [],
     };
     practiceSel.value = name;
-    $('practiceOff').hidden = false;
+    $('practiceOff').hidden = $('practiceHear').hidden = false;
     practiceMsg.hidden = false;
     maccann.classList.remove('stale');
     showPracticeHint();
@@ -647,20 +679,28 @@
   }
 
   function stopPractice() {
+    stopChordSound();
     practice = null;
     practiceSel.value = '';
-    $('practiceOff').hidden = true;
+    $('practiceOff').hidden = $('practiceHear').hidden = true;
     practiceMsg.hidden = true;
     maccannInfo.textContent = MACCANN_INFO;
     for (const b of maccannButtons) b.g.classList.remove('target', 'fits', 'good', 'bad');
+    if (current) render(current, true);
+    else { letterEl.classList.remove('chord'); letterEl.textContent = '–'; altEl.textContent = ''; drawStaff(null); }
     drawMaccann(current?.type === 'note' ? [current.midi] : current?.midis);
-    maccann.classList.toggle('stale', nameBox.classList.contains('stale'));
+    setStale();  // what was heard before is old news
     saveSettings();
   }
 
   // In practice mode notes are spelled to suit the chord (fis-Moll: F♯ A C♯), not by the ♯/♭ switch
   const noteName = m => label(spell(m, practice.flats), useHelm);
-  const practicePc = pc => { const sp = spell(pc + 60, practice.flats); return sp.letter + ACC[sp.acc]; };
+  // Chord tones by their German names (H, B = B♭, Fis, Es, As …), as in the chord names
+  const practicePc = pc => {
+    const { letter, acc } = spell(pc + 60, practice.flats);
+    if (letter === 'B') return acc === -1 ? 'B' : acc === 1 ? 'His' : 'H';
+    return letter + (acc === 1 ? 'is' : acc === -1 ? (/[AE]/.test(letter) ? 's' : 'es') : '');
+  };
 
   function showPracticeHint() {
     practiceMsg.className = 'practice-msg';
@@ -669,7 +709,7 @@
   }
 
   function drawPractice() {
-    const { pcs, targets } = practice;
+    const { targets } = practice;
     const heard = new Set(practice.heard);
     // A heard chord tone lights the suggested button if it is one, otherwise every button with that note
     const heardTargets = new Set([...targets].filter(b => heard.has(b.midi)).map(b => b.midi));
@@ -677,7 +717,7 @@
       const sp = spell(b.midi, practice.flats);
       b.t.textContent = label(sp, useHelm);
       b.g.querySelector('title').textContent = label(sp, !useHelm);
-      const inChord = pcs.has(b.midi % 12);
+      const inChord = practice.allowed.has(b.midi % 12);
       const isHeard = practice.heardButtons ? practice.heardButtons.has(b)
         : heard.has(b.midi) && (targets.has(b) || !heardTargets.has(b.midi));
       b.g.classList.remove('on');
@@ -687,6 +727,24 @@
       b.g.classList.toggle('bad', isHeard && !inChord);
     }
     maccannInfo.textContent = 'Blau: vorgeschlagener Griff · gestrichelt: passt auch · grün: richtig · rot: falsch';
+    drawPracticeTop();
+  }
+
+  // The chord being practised, at the top: its name, and the grip on the staff. Heard grip notes turn
+  // green; other heard notes are added, green if they belong to the chord, red if not.
+  function drawPracticeTop() {
+    const [, rootName, rest] = practice.name.match(/^([A-Ha-h](?:is|es|s)?)(.*)$/);
+    letterEl.classList.add('chord');
+    letterEl.innerHTML = `${rootName}<span class="qual">${rest.replace(/^-/, '‑')}</span>`;
+    altEl.textContent = `${practice.de} · ${[...practice.pcs].map(practicePc).join(' ')}`;
+    freqEl.innerHTML = '&nbsp;';
+    const grip = [...practice.grip.left, ...practice.grip.right];
+    const heard = new Set(practice.heardButtons ? [...practice.heardButtons].map(b => b.midi) : practice.heard);
+    const midis = [...new Set([...grip, ...heard])].sort((x, y) => x - y);
+    const cls = m => !heard.has(m) ? '' : practice.allowed.has(m % 12) ? 'good' : 'bad';
+    drawStaff(midis, practice.flats, cls);
+    nameBox.classList.remove('stale');
+    staff.classList.remove('stale');
   }
 
   // Called with each confirmed set of heard notes; an empty set (silence) keeps the last message.
@@ -695,14 +753,14 @@
   // known (`buttons`), and the feedback follows them directly.
   function setPracticeHeard(midis, buttons = null) {
     if (!buttons && midis.length && midis.every(m => practice.heard.includes(m))) return;
-    if (!buttons && practice.complete && midis.length && midis.every(m => practice.pcs.has(m % 12))) return;
+    if (!buttons && practice.complete && midis.length && midis.every(m => practice.allowed.has(m % 12))) return;
     practice.heard = midis;
     practice.heardButtons = buttons;
     practice.complete = false;
     drawPractice();
     if (!midis.length) return;
-    const wrong = midis.filter(m => !practice.pcs.has(m % 12));
-    const got = new Set(midis.filter(m => practice.pcs.has(m % 12)).map(m => m % 12));
+    const wrong = midis.filter(m => !practice.allowed.has(m % 12));
+    const got = new Set(midis.map(m => m % 12));
     const missing = [...practice.pcs].filter(pc => !got.has(pc));
     if (wrong.length) {
       practiceMsg.className = 'practice-msg bad';
@@ -716,6 +774,54 @@
       practiceMsg.textContent = `Gut so weit – es fehlt noch: ${missing.map(practicePc).join(' ')}`;
     }
   }
+
+  // "Anhören": the grip sounds (both hands) while the button is held down
+  let chordSound = null;  // { notes: [{ src, gain }], until } while sounding or loading
+  async function startChordSound() {
+    if (!practice || chordSound) return;
+    ensurePlayCtx();
+    if (playCtx.state !== 'running') playCtx.resume();
+    const me = chordSound = { notes: [], until: Infinity };
+    $('practiceHear').classList.add('on');
+    const buttons = [...practice.targets];
+    let loops;
+    try { loops = await Promise.all(buttons.map(b => getLoop(sampleFor(b).file))); } catch {
+      statusEl.textContent = 'Could not load the recordings.';
+      return stopChordSound();
+    }
+    if (chordSound !== me) return;  // let go while loading
+    const t = playCtx.currentTime, level = 1.6 / buttons.length;
+    me.notes = buttons.map((b, i) => playNote(playCtx, playOut, loops[i], sampleFor(b).rate, t, t + 3600, level));
+  }
+  function stopChordSound() {
+    if (!chordSound) return;
+    const t = playCtx.currentTime;
+    for (const { src, gain } of chordSound.notes) {
+      gain.gain.cancelScheduledValues(t);
+      gain.gain.setValueAtTime(gain.gain.value, t);
+      gain.gain.linearRampToValueAtTime(0, t + 0.06);
+      src.stop(t + 0.1);
+    }
+    chordSound = null;
+    hearUntil = performance.now() + 400;  // the room still rings a little
+    $('practiceHear').classList.remove('on');
+  }
+  // While the chord sounds (and shortly after), the microphone would only hear the speaker
+  let hearUntil = 0;
+  const previewing = () => chordSound || performance.now() < hearUntil;
+  const hearBtn = $('practiceHear');
+  hearBtn.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    hearBtn.setPointerCapture?.(e.pointerId);
+    startChordSound();
+  });
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) hearBtn.addEventListener(ev, stopChordSound);
+  hearBtn.addEventListener('contextmenu', e => e.preventDefault());  // long press on phones
+  hearBtn.addEventListener('keydown', e => {
+    if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); startChordSound(); }
+  });
+  hearBtn.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') stopChordSound(); });
+  window.addEventListener('blur', stopChordSound);
 
   practiceSel.onchange = () => (practiceSel.value ? startPractice(practiceSel.value) : stopPractice());
   $('practiceOff').onclick = stopPractice;
@@ -885,7 +991,7 @@
       const real = notes.filter(n => !n.overtone).map(n => n.midi);
       const single = freq > 0 && (clarity >= CHORD_CLARITY_MAX ||
         (clarity >= CLARITY_GATE && new Set(real.map(m => m % 12)).size <= 1));
-      const inChord = m => practice.pcs.has(m % 12);
+      const inChord = m => practice.allowed.has(m % 12);
       heard = single ? [Math.round(69 + 12 * Math.log2(freq / a4))]
         : new Set(real.filter(inChord).map(m => m % 12)).size >= 2
           ? notes.filter(n => !n.overtone || (n.octaveOrFifth && inChord(n.midi))).map(n => n.midi)
@@ -910,6 +1016,7 @@
       rafId = requestAnimationFrame(tick);
       // A paused microphone repeats its last buffer: don't keep detecting the old note from it
       if (!micLive()) return;
+      if (practice && previewing()) return;  // only the "Anhören" chord from the speaker
       analyser.getFloatTimeDomainData(buf);
       const { rms, freq, clarity } = detectPitch(buf, ctx.sampleRate);
       levelEl.style.width = `${Math.min(100, rms * 400)}%`;
@@ -1124,7 +1231,7 @@
     current = chord ? { type: 'chord', chord, midis } : { type: 'note', midi: buttons.at(-1).midi };
     pushHistory(current);
     render(current);
-    if (!chord) drawStaff(midis, useFlats);
+    if (!chord && !practice) drawStaff(midis, useFlats);
     if (!practice) for (const b of maccannButtons) b.g.classList.toggle('on', playing.has(b));
     clearTuning();
   }

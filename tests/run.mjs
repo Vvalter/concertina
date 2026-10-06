@@ -91,6 +91,14 @@ const PRACTICE = [
   ['C-Dur', CHORDS[5][1], /^Falsch: A3 /], ['C-Dur', 'rechts_Spalte6_1_F#', /^Falsch: F♯4 /],
   ['a-Moll', CHORDS[5][1], /^Richtig/], ['a-Moll', CHORDS[6][1], /^Richtig/], ['a-Moll', CHORDS[0][1], /^Falsch: G4 /],
   ['G7', CHORDS[11][1], /^Richtig/], ['G7', CHORDS[10][1], /^Richtig/], ['G7', CHORDS[9][1], /^Gut so weit – es fehlt noch: F$/],
+  // Jazz and blues: a 9th chord is complete without its 5th, and the 5th isn't wrong either
+  ['C9', 'rechts_Spalte2_1_C rechts_Spalte3_2_E rechts_Spalte6_2_Bb rechts_Spalte4_3_D1', /^Richtig/],
+  ['C9', 'rechts_Spalte2_1_C rechts_Spalte3_2_E rechts_Spalte2_2_G rechts_Spalte6_2_Bb rechts_Spalte4_3_D1', /^Richtig/],
+  ['C9', 'rechts_Spalte2_1_C rechts_Spalte3_2_E', /^Gut so weit – es fehlt noch: B D$/],
+  ['Hm7♭5', 'rechts_Spalte5_2_B rechts_Spalte5_1_F', /^Gut so weit – es fehlt noch: D A$/],
+  ['A9', 'rechts_Spalte3_3_A', /^Gut so weit – es fehlt noch: Cis G H$/],
+  ['Cmaj7', 'rechts_Spalte2_1_C rechts_Spalte3_2_E rechts_Spalte2_2_G rechts_Spalte5_2_B', /^Richtig/],
+  ['Cmaj7', CHORDS[12][1].replace('rechts_Spalte6_1_F#', 'rechts_Spalte6_2_Bb'), /^Falsch/],
 ];
 for (const [chord, list, want] of PRACTICE) {
   const files = list.split(' ');
@@ -108,6 +116,7 @@ for (const f of samples) {
   } });
 }
 cases.push({ group: 'play', name: 'tap buttons', settings: SETTINGS, play: true });
+cases.push({ group: 'practice', name: 'staff and Anhören', settings: { ...SETTINGS, practice: 'C9' }, hear: true });
 cases.push({ group: 'mic', name: 'paused and lost microphone', settings: SETTINGS, mic: true });
 cases.push({ group: 'song', name: 'Hänschen klein', settings: SETTINGS, song: true });
 cases.push({ group: 'song', name: 'Hänschen klein – Duett', settings: SETTINGS, duet: true });
@@ -216,6 +225,7 @@ async function runCase(w, c) {
   w.errors.length = 0;
   if (c.play) return runPlayCase(w);
   if (c.mic) return runMicCase(w);
+  if (c.hear) return runHearCase(w);
   if (c.song) return runSongCase(w);
   if (c.duet) return runDuetCase(w);
   await w.ev(`document.getElementById('start').click()`);
@@ -267,6 +277,44 @@ async function runMicCase(w) {
   if (!oldStream || await w.ev(`window.__mic().stream === window.__oldStream || !window.__mic().ctx`))
     problems.push('ended track: no new microphone stream');
   await playNote('rechts_Spalte3_2_E', 'E4', 'after the track ended');
+  if (w.errors.length) problems.push(`page error: ${w.errors[0]}`);
+  return problems.join('; ') || null;
+}
+
+// Chord practice: the chord's grip is on the staff, heard grip notes turn green there, and the
+// "Anhören" button sounds the chord only while it is held down
+async function runHearCase(w) {
+  const problems = [];
+  const staff = () => w.ev(`[...document.querySelectorAll('#staff .head')].map(h => h.getAttribute('class').trim()).join(',')`);
+  const letter = await w.ev(`document.getElementById('letter').textContent`);
+  if (letter !== 'C9') problems.push(`top shows ${letter}, expected C9`);
+  if (await staff() !== 'head,head,head,head,head,head,head,head') problems.push(`staff before playing: ${await staff()}`);
+  await w.ev(`document.getElementById('start').click()`);
+  await sleep(150);
+  await w.ev(`window.__play(['rechts_Spalte3_2_E']).then(() => window.__done = true), true`);
+  await sleep(700);
+  // The grip is C3 E3 B♭3 D4 C4 E4 B♭4 D5: E4, the 6th head, is green, the rest plain
+  const lit = await staff();
+  if (lit !== 'head,head,head,head,head,head good,head,head') problems.push(`staff while E4 sounds: ${lit}`);
+  while (!await w.ev('window.__done')) await sleep(100);
+  await w.ev(`document.getElementById('start').click()`);  // stop listening
+
+  const hear = await w.ev(`document.getElementById('practiceHear')`).then(() => true).catch(() => false);
+  if (!hear) problems.push('no Anhören button');
+  const rms = () => w.ev(`(async () => {
+    const buf = new Float32Array(2048); let m = 0;
+    for (let i = 0; i < 8; i++) { window.__out.getFloatTimeDomainData(buf); m = Math.max(m, window.__detectPitch(buf, window.__outCtx.sampleRate).rms); await new Promise(r => setTimeout(r, 25)); }
+    return m;
+  })()`);
+  const press = type => w.ev(`document.getElementById('practiceHear').dispatchEvent(new PointerEvent('${type}', { bubbles: true, pointerId: 1 }))`);
+  await press('pointerdown');
+  await sleep(800);
+  const held = await rms();
+  if (!(held > 0.01)) problems.push(`held: output level ${held}`);
+  await press('pointerup');
+  await sleep(300);
+  const after = await rms();
+  if (after > 0.001) problems.push(`released: still sounding (${after})`);
   if (w.errors.length) problems.push(`page error: ${w.errors[0]}`);
   return problems.join('; ') || null;
 }

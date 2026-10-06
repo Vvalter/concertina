@@ -20,7 +20,7 @@ No build step, no dependencies, no npm packages. The only external resource is t
 - `concertina.css`: shared colours, layout basics, controls and the button-diagram styles.
 - `samples/`: one recording per button (see Testing for the names). Play mode and the song page need them deployed too.
 
-Both pages load the shared files as `concertina.js?v=V11` / `concertina.css?v=V11`. **Update that query together with the version label**, so GitHub Pages' cache can't pair a new page with old shared files.
+Both pages load the shared files as `concertina.js?v=V12` / `concertina.css?v=V12`. **Update that query together with the version label**, so GitHub Pages' cache can't pair a new page with old shared files.
 
 `index.html` script sections, in order (search for `// ----------`):
 
@@ -32,14 +32,14 @@ Both pages load the shared files as `concertina.js?v=V11` / `concertina.css?v=V1
 | staff rendering | `drawStaff(midis, flats)` draws the grand staff as SVG. Notes ≥ middle C go on treble, lower ones on bass. It handles ledger lines, second-interval head offsets, stacked accidentals, and 8va for ≥ C7. |
 | Maccann keyboard | `MACCANN` holds the button positions (Edeophone 55-key). `drawMaccann(midis)` highlights buttons and writes the L/R legend. |
 | UI state | `current` is `{type:'note', midi}` or `{type:'chord', chord, midis}`. `render(sound)` draws everything. The note-history row is also here. |
-| chord practice | "Akkord üben" dropdown (`PRACTICE_CHORDS`, German names). `startPractice` outlines a close root-position grip per hand (left from octave 3, right from octave 4); `drawMaccann` defers to `drawPractice` while practising. `setPracticeHeard` turns heard buttons green/red and writes the German verdict; while notes only drop out the verdict stays. Exit with × Beenden, "– aus –" or Esc. |
+| chord practice | "Akkord üben" dropdown (`PRACTICE_CHORDS`, German names; groups Dur, Moll, Septakkorde, Jazz, Blues). Each entry names a kind in `PRACTICE_KINDS`: required intervals `iv`, optional ones `opt` (a 9th chord's 5th: may sound, isn't required) and the German description. `practice.pcs` = required pitch classes, `practice.allowed` = plus optional; "wrong" means not in `allowed`. While practising, the top (`drawPracticeTop`, called from `render` and `drawPractice`) shows the chord name and description, its tones in German (`practicePc`: H, B = B♭, Fis, Es …) and the grip on the staff; heard grip notes turn green, other heard notes are added green/red (`drawStaff(midis, flats, cls)`). "▶ Anhören (halten)" sounds the grip of both hands from the recordings while held (pointer capture; Space/Enter too); meanwhile and for 0.4 s after, the mic loop ignores input (`previewing()`), so the speaker can't make a verdict. `startPractice` outlines a close root-position grip per hand (left from octave 3, right from octave 4); `drawMaccann` defers to `drawPractice` while practising. `setPracticeHeard` turns heard buttons green/red and writes the German verdict; while notes only drop out the verdict stays. Exit with × Beenden, "– aus –" or Esc. |
 | settings | `saveSettings()` stores ♯/♭, c'/C4, chords on/off, A4, practice chord, mode and diagnostics in `localStorage` (`noteListener.settings`); restored at the end of the script. |
 | audio | `getUserMedia` (echo cancellation, noise suppression and AGC all **off**; they wreck instrument audio). Two `AnalyserNode`s: 2048 for the monophonic path, 16384 for chords. The AudioContext is created before the `await` (iOS only runs one made during the tap). Phones pause the mic on screen lock, in the background or when another app takes it: `micLive()` gates the loop (a suspended analyser repeats its last buffer, which kept showing the old note), `showMicState` says "Microphone paused. Tap anywhere to continue.", any tap resumes the context, an ended track (or one still muted 1.5 s after returning) gets a fresh stream via `restart()`. A screen wake lock is held while listening. |
 | play mode | "Microphone / Play buttons" switch. Tapping a diagram button toggles a looped recording from `samples/` (`SAMPLE_FILES`; buttons without one borrow the other hand's or a re-pitched neighbour). `makeLoop` (concertina.js) builds a ~3 s loop per note: from the longest steady stretch (loudness flattened) it chains 0.15–0.3 s pieces taken from random places, each joined where the waveform matches best (60 ms crossfade), so no short pattern repeats. About 30 ms per note; 50 loops are ~26 MB of audio. Needs http(s): browsers block `fetch` on `file://`. |
 | diagnostics | The "Diagnostics" checkbox in the settings (remembered): a panel under the status line with frames/s, sample rate, level and peak (clipped frames), MPM clarity, why the current frame shows nothing (too quiet / unclear / chord), the confirm candidate, and the track's real `echoCancellation`/`noiseSuppression`/`autoGainControl` settings. "Record 10 s" records the mic with `MediaRecorder`; then a Save link (blob download) and, if `navigator.canShare`, a Share button appear. The file type must be bare (`audio/webm` → .webm, preferred; `audio/mp4` → .m4a, for Safari): with `;codecs=…` phones refuse to share it, and Chrome refuses `audio/mp4` (NotAllowedError, not on its share list), so a recording from a phone can be replayed in the tests. |
 | loop | Per animation frame: gate on RMS. If chords are on (`useChords`, the "Notes + chords / Notes only" switch) and MPM clarity < `CHORD_CLARITY_MAX`, try chord detection first; otherwise fall back to a single note. A result must repeat for `NOTE_CONFIRM` / `CHORD_CONFIRM` frames before it is shown. |
 
-The version label (`#version`, currently `V11`) is in the `<h1>`. **Bump it with every change that gets pushed.** It shows the owner which version is loaded, and it drives the update check: on load, and when the tab becomes visible again (at most once a minute), the page re-fetches itself with `fetch(location.href, {cache: 'reload'})`. That bypasses GitHub Pages' 10-minute `max-age` and refreshes the browser cache. If the fetched `#version` differs, it shows a "new version available – Reload" bar. It is skipped on `file://`.
+The version label (`#version`, currently `V12`) is in the `<h1>`. **Bump it with every change that gets pushed.** It shows the owner which version is loaded, and it drives the update check: on load, and when the tab becomes visible again (at most once a minute), the page re-fetches itself with `fetch(location.href, {cache: 'reload'})`. That bypasses GitHub Pages' 10-minute `max-age` and refreshes the browser cache. If the fetched `#version` differs, it shows a "new version available – Reload" bar. It is skipped on `file://`.
 
 Test hooks at the bottom of the script: `window.__detectPitch`, `window.__show(sound)`, `window.__identifyChord` and `window.__mic()` (`{ctx, stream}`).
 
@@ -66,7 +66,7 @@ Test hooks at the bottom of the script: `window.__detectPitch`, `window.__show(s
 - `single`: each of the 50 recordings must show only its own note.
 - `chord`: 23 chords and intervals mixed from recordings must show the right chord, intervals no chord. One known failure: F3 + F4/A4/C5 (the C5 reed's weak fundamental is subtracted as F3's 3rd harmonic).
 - `notes-only`: with chord detection off, no chord is shown.
-- `practice`, `practice-single`: practice-mode verdicts and green/red buttons.
+- `practice`, `practice-single`: practice-mode verdicts and green/red buttons, incl. jazz/blues chords (9th without its 5th, German tone names). `staff and Anhören`: the grip on the staff, a heard note green, and the Anhören button sounds only while held.
 - `mic`: a suspended AudioContext shows "paused" and stops showing the old note, a tap resumes it; an ended track gets a new stream. Notes are recognised after both.
 - `play`: tapped buttons sound at the right pitch until tapped again; switching to Microphone stops them.
 - `song`: song.html highlights the notes in order, the right button is lit, and the right pitch sounds.
@@ -83,6 +83,10 @@ For a quick algorithm check without a browser, slice the script between `const M
   As of 2026-09-28 Pages was **not yet enabled**. The settings page wouldn't load for the owner, and `gh` isn't installed here. With `gh`, run:
   `gh api -X POST repos/Vvalter/concertina/pages -f "source[branch]=main" -f "source[path]=/"`.
 - The microphone needs a secure context (HTTPS or `http://localhost`). For local dev: `python3 -m http.server`.
+
+## Field reports from real phones
+
+- **V11 (2026-10-06), Android Chrome:** single notes are detected clearly. Chords are still poorly recognised. Waiting for a recording from the diagnostics panel (⚙ → Diagnostics → Record 10 s) to tune chord detection against. When it arrives, compare against V11's behaviour, which is known to work for single notes, so changes don't regress them.
 
 ## Open ideas / follow-ups
 
