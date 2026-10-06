@@ -108,6 +108,7 @@ for (const f of samples) {
   } });
 }
 cases.push({ group: 'play', name: 'tap buttons', settings: SETTINGS, play: true });
+cases.push({ group: 'mic', name: 'paused and lost microphone', settings: SETTINGS, mic: true });
 cases.push({ group: 'song', name: 'Hänschen klein', settings: SETTINGS, song: true });
 cases.push({ group: 'song', name: 'Hänschen klein – Duett', settings: SETTINGS, duet: true });
 
@@ -214,6 +215,7 @@ async function runCase(w, c) {
   await w.open(c.song ? 'song.html' : c.duet ? 'duet.html' : 'index.html');
   w.errors.length = 0;
   if (c.play) return runPlayCase(w);
+  if (c.mic) return runMicCase(w);
   if (c.song) return runSongCase(w);
   if (c.duet) return runDuetCase(w);
   await w.ev(`document.getElementById('start').click()`);
@@ -231,6 +233,42 @@ async function runCase(w, c) {
   const lit = key => [...new Set(log.flatMap(s => s[key].split(' ')).filter(Boolean))];
   const err = c.check({ shown, msgs, good: lit('good'), bad: lit('bad') });
   return w.errors.length ? `page error: ${w.errors[0]}` : err;
+}
+
+// A phone pausing the microphone (screen lock, another app) or ending it: the page must say so, stop
+// showing the old note, and listen again after a tap or with a new stream
+async function runMicCase(w) {
+  const problems = [];
+  const status = () => w.ev(`document.getElementById('status').textContent`);
+  const letter = () => w.ev(`document.getElementById('nameBox').classList.contains('stale') ? 'stale' :
+    document.getElementById('letter').textContent`);
+  const playNote = async (file, want, when) => {
+    await w.ev(`window.__log.length = 0`);
+    await w.ev(`window.__play(${JSON.stringify([file])})`);
+    const seen = await w.ev(`window.__log.filter(s => !s.stale).map(s => s.letter)`);
+    if (!seen.includes(want)) problems.push(`${when}: expected ${want}, shown: ${seen.join(', ') || 'nothing'}`);
+  };
+  await w.ev(`document.getElementById('start').click()`);
+  await sleep(150);
+  await playNote('rechts_Spalte2_1_C', 'C4', 'before the pause');
+
+  await w.ev(`window.__mic().ctx.suspend()`);
+  await sleep(100);
+  if (!/paused/.test(await status())) problems.push(`suspended: status is "${await status()}"`);
+  if (await letter() !== 'stale') problems.push('suspended: the old note is still shown as current');
+  await w.ev(`document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))`);
+  await sleep(150);
+  if (!/Listening/.test(await status())) problems.push(`after a tap: status is "${await status()}"`);
+  await playNote('rechts_Spalte2_2_G', 'G4', 'after resuming');
+
+  const oldStream = await w.ev(`(window.__oldStream = window.__mic().stream, true)`);
+  await w.ev(`window.__mic().stream.getAudioTracks()[0].dispatchEvent(new Event('ended'))`);
+  await sleep(300);
+  if (!oldStream || await w.ev(`window.__mic().stream === window.__oldStream || !window.__mic().ctx`))
+    problems.push('ended track: no new microphone stream');
+  await playNote('rechts_Spalte3_2_E', 'E4', 'after the track ended');
+  if (w.errors.length) problems.push(`page error: ${w.errors[0]}`);
+  return problems.join('; ') || null;
 }
 
 // Play mode: each tapped button must sound at its pitch until tapped again

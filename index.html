@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V6">
+<link rel="stylesheet" href="concertina.css?v=V9">
 <style>
   a.nav { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
   .update {
@@ -107,6 +107,7 @@
   .practice-msg.bad { color: var(--bad); }
   .status { color: var(--muted); font-size: 0.9rem; min-height: 1.3em; }
   .level { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+  .debug pre { font-size: 0.75rem; white-space: pre-wrap; margin: 0 0 6px; color: var(--muted); }
   .level div { height: 100%; width: 0; background: var(--accent); transition: width 0.05s linear; }
 </style>
 </head>
@@ -118,7 +119,7 @@
   </div>
   <header>
     <div>
-      <h1>Note Listener <span class="version" id="version">V6</span></h1>
+      <h1>Note Listener <span class="version" id="version">V9</span></h1>
       <div class="links"><a class="nav" href="song.html">♪ Hänschen klein</a> · <a class="nav" href="duet.html">♫ Hänschen klein – Duett</a></div>
     </div>
     <div class="controls">
@@ -141,6 +142,7 @@
         <button id="btnNotesOnly" aria-pressed="false" title="Chord detection off">Notes only</button>
       </div>
       <label>A4 = <input id="a4" type="number" min="400" max="480" step="1" value="440"> Hz</label>
+      <label title="Shows what the note detector hears, and can record the microphone"><input id="debugToggle" type="checkbox"> Diagnostics</label>
       </div>
       <button id="settingsBtn" class="settings-btn" aria-expanded="false" aria-label="Settings">⚙</button>
       <button id="start" class="start">Start listening</button>
@@ -184,10 +186,11 @@
 
   <div class="level"><div id="level"></div></div>
   <div class="status" id="status">Press “Start listening” and allow microphone access.</div>
+  <div class="debug" id="debug" hidden><pre id="debugInfo"></pre><button id="debugRec">Record 10 s</button></div>
   <div class="history" id="history"></div>
 </main>
 
-<script src="concertina.js?v=V6"></script>
+<script src="concertina.js?v=V9"></script>
 <script>
 (() => {
   const { ACC, spell, label, buildMaccann, SAMPLE_FILES, sampleFor, loopCache } = Concertina;
@@ -727,7 +730,7 @@
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify({
         flats: useFlats, helm: useHelm, chords: useChords, a4: a4Input.value, practice: practice?.name || '',
-        mode: playMode ? 'play' : 'listen',
+        mode: playMode ? 'play' : 'listen', debug,
       }));
     } catch { /* not remembered */ }
   }
@@ -738,21 +741,26 @@
 
   // ---------- audio ----------
   let ctx = null, stream = null, analyser = null, fftAnalyser = null, rafId = 0;
+  let wakeLock = null, restarting = false;
 
   async function start() {
     if (!navigator.mediaDevices?.getUserMedia) {
       statusEl.textContent = 'Microphone access is not available. Open this page over https:// or http://localhost.';
       return;
     }
+    // Made before the await: iOS only lets an AudioContext run if it is created during the tap
+    const newCtx = new (window.AudioContext || window.webkitAudioContext)();
     try {
       stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
       });
     } catch (err) {
+      newCtx.close();
       statusEl.textContent = `Could not access microphone: ${err.message || err.name}`;
       return;
     }
-    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    ctx = newCtx;
+    if (ctx.state !== 'running') ctx.resume().catch(() => {});
     const src = ctx.createMediaStreamSource(stream);
     analyser = ctx.createAnalyser();
     analyser.fftSize = 2048;
@@ -762,23 +770,80 @@
     fftAnalyser.fftSize = 16384;
     fftAnalyser.smoothingTimeConstant = 0.5;
     src.connect(fftAnalyser);
+    ctx.onstatechange = showMicState;
+    const track = stream.getAudioTracks()[0];
+    track.onmute = track.onunmute = showMicState;
+    track.onended = restart;
     startBtn.textContent = 'Stop';
     startBtn.classList.add('listening');
-    statusEl.textContent = 'Listening… play a note or chord.';
+    showMicState();
+    keepScreenOn();
     loop();
   }
 
   function stop() {
     cancelAnimationFrame(rafId);
-    stream?.getTracks().forEach(t => t.stop());
-    ctx?.close();
+    stream?.getTracks().forEach(t => { t.onended = t.onmute = t.onunmute = null; t.stop(); });
+    if (ctx) { ctx.onstatechange = null; ctx.close(); }
     ctx = stream = analyser = fftAnalyser = null;
+    wakeLock?.release().catch(() => {});
+    wakeLock = null;
     startBtn.textContent = 'Start listening';
     startBtn.classList.remove('listening');
     levelEl.style.width = '0';
     setStale();
     statusEl.textContent = 'Stopped.';
   }
+
+  // Phones pause the microphone when the screen locks, the browser goes to the background or another
+  // app (a call, a voice message) takes it. Without these checks the page kept "listening" to nothing.
+  const micLive = () => ctx?.state === 'running' && stream.getAudioTracks()[0]?.readyState === 'live' &&
+    !stream.getAudioTracks()[0].muted;
+
+  function showMicState() {
+    if (!ctx) return;
+    if (micLive()) statusEl.textContent = 'Listening… play a note or chord.';
+    else {
+      statusEl.textContent = 'Microphone paused. Tap anywhere to continue.';
+      setStale();
+    }
+  }
+
+  // A fresh microphone stream and AudioContext, for when the old ones can't be resumed
+  async function restart() {
+    if (!ctx || restarting) return;
+    restarting = true;
+    stop();
+    await start();
+    restarting = false;
+  }
+
+  function wakeMic() {
+    if (!ctx) return;
+    const track = stream.getAudioTracks()[0];
+    if (track.readyState === 'ended') return restart();
+    if (ctx.state !== 'running') ctx.resume().catch(() => {});
+  }
+
+  // Both hands are on the instrument, so nobody touches the screen; keep it from locking
+  async function keepScreenOn() {
+    if (!ctx || wakeLock || document.visibilityState !== 'visible') return;
+    try {
+      wakeLock = await navigator.wakeLock?.request('screen');
+      wakeLock?.addEventListener('release', () => { wakeLock = null; });
+    } catch { /* not supported, or refused (e.g. battery saver) */ }
+  }
+
+  document.addEventListener('pointerdown', wakeMic, true);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !ctx) return;
+    keepScreenOn();
+    wakeMic();
+    // iOS sometimes leaves the track muted after coming back; a new stream fixes that
+    setTimeout(() => {
+      if (ctx && document.visibilityState === 'visible' && stream.getAudioTracks()[0].muted) restart();
+    }, 1500);
+  });
 
   startBtn.onclick = () => (ctx ? stop() : start());
 
@@ -842,9 +907,13 @@
     const buf = new Float32Array(analyser.fftSize);
     const spec = new Float32Array(fftAnalyser.frequencyBinCount);
     const tick = () => {
+      rafId = requestAnimationFrame(tick);
+      // A paused microphone repeats its last buffer: don't keep detecting the old note from it
+      if (!micLive()) return;
       analyser.getFloatTimeDomainData(buf);
       const { rms, freq, clarity } = detectPitch(buf, ctx.sampleRate);
       levelEl.style.width = `${Math.min(100, rms * 400)}%`;
+      if (debug) debugFrame(buf);
       const a4 = Number(a4Input.value) || 440;
 
       let chord = null, midis = null, notes = null;
@@ -878,10 +947,77 @@
         setStale();
       }
       if (practice) practiceTick(rms, freq, clarity, a4, getNotes);
-      rafId = requestAnimationFrame(tick);
+      if (debug) debugResult(chord, rms, freq, clarity);
     };
     tick();
   }
+
+  // ---------- diagnostics (the "Diagnostics" checkbox in the settings) ----------
+  // Shows what the detector sees on a phone, and records the microphone so it can be replayed in the
+  // tests. The track settings show whether the browser really turned its voice processing off.
+  let debug = false;
+  let dbg = { frames: 0, since: performance.now(), peak: 0, clipped: 0, info: '' };
+  let recording = null;
+  function setDebug(on) {
+    debug = on;
+    $('debugToggle').checked = on;
+    $('debug').hidden = !on;
+    saveSettings();
+  }
+  $('debugToggle').onchange = e => setDebug(e.target.checked);
+
+  function debugFrame(buf) {
+    let peak = 0;
+    for (const v of buf) peak = Math.max(peak, Math.abs(v));
+    dbg.frames++;
+    dbg.peak = Math.max(dbg.peak, peak);
+    if (peak >= 0.99) dbg.clipped++;
+  }
+
+  function debugResult(chord, rms, freq, clarity) {
+    const why = chord ? `chord ${chord.key}` : rms < RMS_GATE ? 'too quiet'
+      : clarity < CLARITY_GATE || !(freq > 0) ? 'unclear (no single note)' : 'note';
+    const now = performance.now();
+    if (now - dbg.since < 300) return;
+    const fps = dbg.frames * 1000 / (now - dbg.since);
+    const set = stream?.getAudioTracks()[0]?.getSettings?.() || {};
+    $('debugInfo').textContent =
+      `${fps.toFixed(0)} frames/s, ${ctx.sampleRate} Hz, ${ctx.state}\n` +
+      `level ${rms.toFixed(3)} (gate ${RMS_GATE}), peak ${dbg.peak.toFixed(2)}, clipped frames ${dbg.clipped}\n` +
+      `clarity ${clarity.toFixed(2)} (gate ${CLARITY_GATE}), ${freq > 0 ? freq.toFixed(1) + ' Hz' : 'no pitch'}\n` +
+      `this frame: ${why}; candidate ${candidateKey ?? '–'} × ${candidateCount}\n` +
+      `echoCancellation ${set.echoCancellation}, noiseSuppression ${set.noiseSuppression}, autoGainControl ${set.autoGainControl}`;
+    dbg = { frames: 0, since: now, peak: 0, clipped: 0 };
+  }
+
+  $('debugRec').onclick = async () => {
+    const btn = $('debugRec');
+    if (recording) {  // second tap: send or save it (sharing needs a tap, so it can't happen on its own)
+      const file = recording;
+      if (navigator.canShare?.({ files: [file] })) navigator.share({ files: [file] }).catch(() => {});
+      else {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(file); a.download = file.name; a.click();
+      }
+      return;
+    }
+    if (!stream) { statusEl.textContent = 'Start listening first.'; return; }
+    const type = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find(t => MediaRecorder.isTypeSupported?.(t));
+    const rec = new MediaRecorder(stream, { mimeType: type, audioBitsPerSecond: 256000 });
+    const chunks = [];
+    rec.ondataavailable = e => chunks.push(e.data);
+    rec.onstop = () => {
+      const ext = rec.mimeType.includes('mp4') ? 'm4a' : 'webm';
+      recording = new File(chunks, `concertina-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.${ext}`,
+        { type: rec.mimeType });
+      btn.textContent = 'Send / save recording';
+      btn.disabled = false;
+    };
+    rec.start();
+    btn.disabled = true;
+    for (let i = 10; i > 0; i--) { btn.textContent = `Recording… ${i}`; await new Promise(r => setTimeout(r, 1000)); }
+    rec.stop();
+  };
 
   // ---------- update check ----------
   // GitHub Pages lets browsers cache the page for 10 minutes, so a plain reload can show an old
@@ -1019,6 +1155,7 @@
       if (saved.a4 && Number(saved.a4)) a4Input.value = saved.a4;
       if (saved.practice) startPractice(saved.practice);
       if (saved.mode === 'play') setPlayMode(true);
+      if (saved.debug) setDebug(true);
     }
   } catch { /* start with defaults */ }
   settingsLoaded = true;
@@ -1027,6 +1164,7 @@
   window.__detectPitch = detectPitch;
   window.__show = sound => { current = sound; render(sound); };
   window.__identifyChord = identifyChord;
+  window.__mic = () => ({ ctx, stream });
   window.__checkForUpdate = () => { lastCheck = 0; return checkForUpdate(); };
 })();
 </script>
