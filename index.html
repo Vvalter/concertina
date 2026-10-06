@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V9">
+<link rel="stylesheet" href="concertina.css?v=V10">
 <style>
   a.nav { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
   .update {
@@ -119,7 +119,7 @@
   </div>
   <header>
     <div>
-      <h1>Note Listener <span class="version" id="version">V9</span></h1>
+      <h1>Note Listener <span class="version" id="version">V10</span></h1>
       <div class="links"><a class="nav" href="song.html">♪ Hänschen klein</a> · <a class="nav" href="duet.html">♫ Hänschen klein – Duett</a></div>
     </div>
     <div class="controls">
@@ -186,11 +186,11 @@
 
   <div class="level"><div id="level"></div></div>
   <div class="status" id="status">Press “Start listening” and allow microphone access.</div>
-  <div class="debug" id="debug" hidden><pre id="debugInfo"></pre><button id="debugRec">Record 10 s</button></div>
+  <div class="debug" id="debug" hidden><pre id="debugInfo"></pre><button id="debugRec">Record 10 s</button> <button id="debugShare" hidden>Share</button> <a id="debugSave" hidden>Save</a></div>
   <div class="history" id="history"></div>
 </main>
 
-<script src="concertina.js?v=V9"></script>
+<script src="concertina.js?v=V10"></script>
 <script>
 (() => {
   const { ACC, spell, label, buildMaccann, SAMPLE_FILES, sampleFor, loopCache } = Concertina;
@@ -990,33 +990,41 @@
     dbg = { frames: 0, since: now, peak: 0, clipped: 0 };
   }
 
+  // After recording: a plain download link (works everywhere) and, where the browser can, the share sheet.
+  // The file type must be bare ("audio/webm", not "...;codecs=opus"), or phones refuse to share it.
   $('debugRec').onclick = async () => {
-    const btn = $('debugRec');
-    if (recording) {  // second tap: send or save it (sharing needs a tap, so it can't happen on its own)
-      const file = recording;
-      if (navigator.canShare?.({ files: [file] })) navigator.share({ files: [file] }).catch(() => {});
-      else {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(file); a.download = file.name; a.click();
-      }
-      return;
-    }
+    const btn = $('debugRec'), save = $('debugSave'), share = $('debugShare');
     if (!stream) { statusEl.textContent = 'Start listening first.'; return; }
-    const type = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find(t => MediaRecorder.isTypeSupported?.(t));
-    const rec = new MediaRecorder(stream, { mimeType: type, audioBitsPerSecond: 256000 });
+    const type = ['audio/mp4', 'audio/webm'].find(t => MediaRecorder.isTypeSupported?.(t));
+    let rec;
+    try { rec = new MediaRecorder(stream, type ? { mimeType: type, audioBitsPerSecond: 256000 } : {}); }
+    catch (err) { statusEl.textContent = `Could not record: ${err.message || err.name}`; return; }
     const chunks = [];
-    rec.ondataavailable = e => chunks.push(e.data);
-    rec.onstop = () => {
-      const ext = rec.mimeType.includes('mp4') ? 'm4a' : 'webm';
-      recording = new File(chunks, `concertina-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.${ext}`,
-        { type: rec.mimeType });
-      btn.textContent = 'Send / save recording';
-      btn.disabled = false;
-    };
+    rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+    const stopped = new Promise(r => { rec.onstop = r; });
+    save.hidden = share.hidden = true;
+    if (save.href) URL.revokeObjectURL(save.href);  // the previous recording
     rec.start();
     btn.disabled = true;
     for (let i = 10; i > 0; i--) { btn.textContent = `Recording… ${i}`; await new Promise(r => setTimeout(r, 1000)); }
     rec.stop();
+    await stopped;
+    btn.disabled = false;
+    btn.textContent = 'Record 10 s';
+    const mime = (rec.mimeType || type || 'audio/webm').split(';')[0];
+    const ext = mime === 'audio/mp4' ? 'm4a' : 'weba';
+    const file = new File(chunks, `concertina-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.${ext}`, { type: mime });
+    if (!file.size) { statusEl.textContent = 'The recording came out empty.'; return; }
+    save.href = URL.createObjectURL(file);
+    save.download = file.name;
+    save.hidden = false;
+    share.hidden = !navigator.canShare?.({ files: [file] });
+    // Once sent or saved, back to just "Record 10 s"
+    const done = () => { save.hidden = share.hidden = true; };
+    share.onclick = () => navigator.share({ files: [file], title: file.name }).then(done, err => {
+      if (err.name !== 'AbortError') statusEl.textContent = `Could not share (${err.name}): use Save instead.`;
+    });
+    save.onclick = () => setTimeout(done);
   };
 
   // ---------- update check ----------
