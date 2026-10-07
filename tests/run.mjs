@@ -282,7 +282,7 @@ async function runMicCase(w) {
 }
 
 // Chord practice: the chord's grip is on the staff, heard grip notes turn green there, and the
-// "Anhören" button sounds the chord only while it is held down
+// "Anhören" button sounds the chord, lowest note first, only while it is held down
 async function runHearCase(w) {
   const problems = [];
   const staff = () => w.ev(`[...document.querySelectorAll('#staff .head')].map(h => h.getAttribute('class').trim()).join(',')`);
@@ -307,8 +307,17 @@ async function runHearCase(w) {
     return m;
   })()`);
   const press = type => w.ev(`document.getElementById('practiceHear').dispatchEvent(new PointerEvent('${type}', { bubbles: true, pointerId: 1 }))`);
+  // The chord builds up from its lowest note: at first only C3 sounds, after all steps the whole chord
+  const pitch = () => w.ev(`(async () => {
+    const buf = new Float32Array(2048), f = [];
+    for (let i = 0; i < 6; i++) { window.__out.getFloatTimeDomainData(buf); const p = window.__detectPitch(buf, window.__outCtx.sampleRate); if (p.freq > 0 && p.clarity > 0.9) f.push(p.freq); await new Promise(r => setTimeout(r, 20)); }
+    return f.sort((a, b) => a - b)[f.length >> 1] || 0;
+  })()`);
   await press('pointerdown');
-  await sleep(800);
+  await sleep(120);
+  const first = await pitch();
+  if (!(Math.abs(1200 * Math.log2(first / 130.81)) < 30)) problems.push(`first note: ${first.toFixed(1)} Hz, expected C3 (130.8 Hz)`);
+  await sleep(2800);
   const held = await rms();
   if (!(held > 0.01)) problems.push(`held: output level ${held}`);
   await press('pointerup');

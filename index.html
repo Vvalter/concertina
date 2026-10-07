@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V12">
+<link rel="stylesheet" href="concertina.css?v=V13">
 <style>
   a.nav { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
   .update {
@@ -123,7 +123,7 @@
   </div>
   <header>
     <div>
-      <h1>Note Listener <span class="version" id="version">V12</span></h1>
+      <h1>Note Listener <span class="version" id="version">V13</span></h1>
       <div class="links"><a class="nav" href="song.html">♪ Hänschen klein</a> · <a class="nav" href="duet.html">♫ Hänschen klein – Duett</a></div>
     </div>
     <div class="controls">
@@ -195,7 +195,7 @@
   <div class="history" id="history"></div>
 </main>
 
-<script src="concertina.js?v=V12"></script>
+<script src="concertina.js?v=V13"></script>
 <script>
 (() => {
   const { ACC, spell, label, buildMaccann, SAMPLE_FILES, sampleFor, loopCache, playNote } = Concertina;
@@ -775,7 +775,9 @@
     }
   }
 
-  // "Anhören": the grip sounds (both hands) while the button is held down
+  // "Anhören": the grip sounds (both hands) while the button is held down, built up from the lowest
+  // note one at a time so each can be heard
+  const CHORD_STEP = 0.35;  // seconds between the notes coming in
   let chordSound = null;  // { notes: [{ src, gain }], until } while sounding or loading
   async function startChordSound() {
     if (!practice || chordSound) return;
@@ -783,7 +785,7 @@
     if (playCtx.state !== 'running') playCtx.resume();
     const me = chordSound = { notes: [], until: Infinity };
     $('practiceHear').classList.add('on');
-    const buttons = [...practice.targets];
+    const buttons = [...practice.targets].sort((a, b) => a.midi - b.midi);
     let loops;
     try { loops = await Promise.all(buttons.map(b => getLoop(sampleFor(b).file))); } catch {
       statusEl.textContent = 'Could not load the recordings.';
@@ -791,7 +793,8 @@
     }
     if (chordSound !== me) return;  // let go while loading
     const t = playCtx.currentTime, level = 1.6 / buttons.length;
-    me.notes = buttons.map((b, i) => playNote(playCtx, playOut, loops[i], sampleFor(b).rate, t, t + 3600, level));
+    me.notes = buttons.map((b, i) =>
+      playNote(playCtx, playOut, loops[i], sampleFor(b).rate, t + i * CHORD_STEP, t + 3600, level));
   }
   function stopChordSound() {
     if (!chordSound) return;
