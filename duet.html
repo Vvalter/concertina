@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V13">
+<link rel="stylesheet" href="concertina.css?v=V14">
 <style>
   a.back { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
   .intro { color: var(--muted); font-size: 0.9rem; margin: 0; line-height: 1.45; }
@@ -20,6 +20,8 @@
   .score .meter { fill: var(--ink); font: 700 19px system-ui, sans-serif; text-anchor: middle; }
   .score .mark { fill: var(--ink); font: italic 700 14px Georgia, serif; }
   .score .mark.shake { fill: var(--accent); }
+  .score .chord-sym { fill: var(--ink); font: 700 16px system-ui, sans-serif; }
+  .score .chord-sym.now { fill: var(--accent); }
   .score .hand { fill: var(--muted); font: 600 11px system-ui, sans-serif; }
   .score .ev { cursor: pointer; }
   .score .ev .hit { fill: transparent; }
@@ -64,6 +66,10 @@
       <h1>Hänschen klein – Duett</h1>
     </div>
     <div class="controls">
+      <div class="seg" role="group" aria-label="Fassung">
+        <button id="verFull" aria-pressed="true" title="Melodie in Terzen, Umpa-Bass mit Doppelgriffen">Mit Doppelgriffen</button>
+        <button id="verSimple" aria-pressed="false" title="Jede Hand spielt immer nur einen Ton">Einfach</button>
+      </div>
       <label>Tempo <input id="tempo" type="range" min="60" max="160" step="4" value="112">
         <span class="tempo-value" id="tempoValue">112 bpm</span></label>
       <button id="play" class="start" data-play>▶ Play</button>
@@ -74,7 +80,8 @@
     Für Duett-Konzertina: rechts die Melodie eine Oktave höher, links ein Umpa-Bass. „Aber Mutter weinet sehr“
     kommt leise in Terzen über gehaltenen Akkorden, die letzte Strophe laut, und am Schluss schüttelt der Balg
     (Balgtremolo). Beide Hände klingen durch denselben Balg: jede Phrase schwillt an und ab, und beim Balgwechsel
-    gibt es einen kleinen Einschnitt.
+    gibt es einen kleinen Einschnitt. Die Buchstaben über den Noten sind die Akkorde (C = C-Dur, G = G-Dur bzw. G7).
+    <b>Einfach</b>: jede Hand spielt immer nur einen Ton, rechts die Melodie, links Grundton und Quinte.
   </p>
 
   <section class="card">
@@ -95,7 +102,7 @@
   <div class="status" id="status"></div>
 </main>
 
-<script src="concertina.js?v=V13"></script>
+<script src="concertina.js?v=V14"></script>
 <script>
 (() => {
   const { SVG_NS, ACC, spell, label, toMidi, buildMaccann, sampleFor, loopCache, playNote } = Concertina;
@@ -129,26 +136,62 @@
     ['r:1 G5:0.5 E5:0.5 C5:0.5 E5:0.5 G5:0.5 B5:0.5', UMPA_C, 'a tempo', 'Nachspiel'],
     ['E5+G5+C6:4', 'C3+G3+C4:4', '≋ dim.'],
   ];
+  // The simple version: one note at a time in each hand. The right hand plays only the melody (the
+  // top note of the full version's double stops), the left hand root and fifth in half notes.
+  const BASS_C = 'C3:2 G3:2', BASS_G = 'G3:2 D3:2';
+  const SIMPLE = [
+    ['r:4', BASS_C],
+    ['r:1 B4:1 D5:1 F5:1', BASS_G],
+    ['G5:1:Häns- E5:1:chen E5:2:klein', BASS_C],
+    ['F5:1:ging D5:1:al- D5:2:lein', BASS_G],
+    ['C5:1:in D5:1:die E5:1:wei- F5:1:te', BASS_C],
+    ['G5:1:Welt G5:1:hi- G5:2:nein.', BASS_C],
+    ['G5:1:Stock E5:1:und E5:2:Hut', BASS_C],
+    ['F5:1:steht D5:1:ihm D5:2:gut,', BASS_G],
+    ['C5:1:ist E5:1:gar G5:1:wohl- G5:1:ge-', 'C3:2 G3:2'],
+    ['C5:2:mut. r:0.5 G4:0.5 A4:0.5 B4:0.5', 'C3:2 G3:2'],
+    ['D5:1:A- D5:1:ber D5:1:Mut- D5:1:ter', 'G3:4'],
+    ['D5:1:wei- E5:1:net F5:2:sehr,', 'G3:4'],
+    ['E5:1:hat E5:1:ja E5:1:nun E5:1:kein', 'C3:4'],
+    ['E5:1:Häns- F5:1:chen G5:2:mehr.', 'C3:2 G3:2'],
+    ['G5:1:Da E5:1:be- E5:2:sinnt', BASS_C],
+    ['F5:1:sich D5:1:das D5:2:Kind,', BASS_G],
+    ['C5:1:eilt E5:1:nach G5:1:Haus G5:1:ge-', 'C3:2 G3:2'],
+    ['C5:4:schwind.', 'C3:4'],
+    ['r:1 G5:0.5 E5:0.5 C5:0.5 E5:0.5 G5:0.5 B5:0.5', BASS_C],
+    ['C6:4', 'C3:4'],
+  ];
+  // Chord letters above the staff, per bar ("C G": G from beat 3). G stands for G and G7.
+  const HARMONY = ['C', 'G', 'C', 'G', 'C', 'C', 'C', 'G', 'C G', 'C G',
+                   'G', 'G', 'C', 'C G', 'C', 'G', 'C G', 'C', 'C', 'C'];
+  const harmony = HARMONY.flatMap((h, bar) => h.split(' ').map((name, i) => ({ name, beat: bar * 4 + i * 2 })));
+
   // Per bar: bellows level (0-1, ramps between bars), slowing (1 = in tempo), bellows shake
   const LEVEL = [0.6, 0.65, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.5, 0.5, 0.6, 0.8, 1, 1, 1, 1, 0.85, 0.9];
   const SLOW = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1.12, 1.35, 1, 1.4];
   const SHAKE = new Set([17, 19]);
   const BEATS = 4;
 
-  const events = [];   // { hand, bar, beat (from the start), beats, midis, syllable }
-  BARS.forEach(([right, left], bar) => {
-    for (const [hand, line] of [['right', right], ['left', left]]) {
-      let beat = bar * BEATS;
-      for (const tok of line.trim().split(/\s+/)) {
-        const [notes, len, syllable] = tok.split(':');
-        const midis = notes === 'r' ? [] : notes.split('+').map(toMidi);
-        events.push({ hand, bar, beat, beats: Number(len), midis, syllable });
-        beat += Number(len);
+  let version = 'full';
+  try { if (localStorage.getItem('noteListener.duetVersion') === 'simple') version = 'simple'; } catch { }
+  let events = [], onsets = [];   // events: { hand, bar, beat (from the start), beats, midis, syllable }
+  function buildEvents() {  // from the chosen version
+    events = [];
+    (version === 'simple' ? SIMPLE : BARS).forEach(([right, left], bar) => {
+      for (const [hand, line] of [['right', right], ['left', left]]) {
+        let beat = bar * BEATS;
+        for (const tok of line.trim().split(/\s+/)) {
+          const [notes, len, syllable] = tok.split(':');
+          const midis = notes === 'r' ? [] : notes.split('+').map(toMidi);
+          events.push({ hand, bar, beat, beats: Number(len), midis, syllable });
+          beat += Number(len);
+        }
       }
-    }
-  });
+    });
+    onsets = [...new Set(events.map(e => e.beat))].sort((a, b) => a - b);
+  }
+  buildEvents();
   const totalBeats = BARS.length * BEATS;
-  const onsets = [...new Set(events.map(e => e.beat))].sort((a, b) => a - b);
 
   let flats = false, helm = true;
   try {
@@ -172,9 +215,10 @@
 
   function drawScore() {
     score.textContent = '';
+    for (const h of harmony) h.el = null;
     const perLine = score.clientWidth && score.clientWidth < 560 ? 2 : 4;
     const W = perLine === 2 ? 420 : 800, LEAD = 62;
-    const SYS_H = 205, TREBLE_TOP = 52, BASS_TOP = TREBLE_TOP + 4 * S + 62;
+    const SYS_H = 219, TREBLE_TOP = 66, BASS_TOP = TREBLE_TOP + 4 * S + 62;
     const barW = (W - 10 - LEAD) / perLine, lines = Math.ceil(BARS.length / perLine);
     score.setAttribute('viewBox', `0 0 ${W} ${lines * SYS_H + 10}`);
     for (let l = 0; l < lines; l++) {
@@ -186,7 +230,7 @@
       svgEl('line', { class: 'bar', x1: 8, x2: 8, y1: trebleBottom - 4 * S, y2: bassBottom });
       svgEl('text', { class: 'glyph', x: 12, y: trebleBottom - S, 'font-size': 4 * S }, score, '𝄞');
       svgEl('text', { class: 'glyph', x: 12, y: bassBottom - S * 2 / 3, 'font-size': 4 * S }, score, '𝄢');  // as in index.html
-      svgEl('text', { class: 'hand', x: 12, y: trebleBottom - 4 * S - 26 }, score, 'R');
+      svgEl('text', { class: 'hand', x: 12, y: trebleBottom - 4 * S - 22 }, score, 'R');
       svgEl('text', { class: 'hand', x: 12, y: bassBottom - 4 * S - 22 }, score, 'L');
       if (l === 0) {
         for (const bottom of [trebleBottom, bassBottom]) {
@@ -207,7 +251,13 @@
         let x = x0 + 24;
         times.forEach((b, k) => { xOf.set(b, x); x += room[k] * unit; });
         const mark = BARS[bar][2];
-        if (mark) svgEl('text', { class: 'mark' + (mark.startsWith('≋') ? ' shake' : ''), x: x0 + 6, y: trebleBottom - 4 * S - 24 }, score, mark);
+        if (mark) svgEl('text', { class: 'mark' + (mark.startsWith('≋') ? ' shake' : ''), x: x0 + 6, y: trebleBottom - 4 * S - 38 }, score, mark);
+        // Chord letters where the harmony changes, and at the start of each line
+        for (const h of harmony.filter(h => Math.floor(h.beat / BEATS) === bar)) {
+          const prev = harmony[harmony.indexOf(h) - 1];
+          if (prev && prev.name === h.name && !(i === 0 && h.beat % BEATS === 0)) continue;
+          h.el = svgEl('text', { class: 'chord-sym', x: (xOf.get(h.beat) ?? x0 + 24) - 5, y: trebleBottom - 4 * S - 18 }, score, h.name);
+        }
         for (const e of events.filter(e => e.bar === bar)) {
           drawEvent(e, xOf.get(e.beat), e.hand === 'right' ? trebleBottom : bassBottom, e.hand === 'right');
         }
@@ -276,6 +326,9 @@
     nowKey = key;
     nowBeat = beat;
     for (const e of events) e.el?.classList.toggle('now', now.includes(e));
+    // The chord letter in force (the last one written at or before this beat) lights up while playing
+    const chordNow = playing && harmony.findLast(h => h.el && h.beat <= beat);
+    for (const h of harmony) h.el?.classList.toggle('now', h === chordNow);
     const next = events.filter(e => e.beat === onsets.find(b => b > beat) && e.midis.length);
     const on = new Set(), soon = new Set();
     for (const e of now) for (const m of e.midis) on.add(buttonFor(e.hand, m));
@@ -451,6 +504,20 @@
     try { localStorage.setItem('noteListener.duetTempo', tempoInput.value); } catch { }
     if (playing) play(Math.floor(nowBeat));
   });
+
+  function setVersion(v) {
+    if (playing) stop();
+    version = v;
+    $('verFull').setAttribute('aria-pressed', String(v === 'full'));
+    $('verSimple').setAttribute('aria-pressed', String(v === 'simple'));
+    try { localStorage.setItem('noteListener.duetVersion', v); } catch { }
+    buildEvents();
+    nowKey = '';
+    drawScore();
+  }
+  $('verFull').onclick = () => setVersion('full');
+  $('verSimple').onclick = () => setVersion('simple');
+  if (version === 'simple') setVersion('simple');
 
   drawScore();
   addEventListener('resize', () => {

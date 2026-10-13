@@ -120,6 +120,7 @@ cases.push({ group: 'practice', name: 'staff and Anhören', settings: { ...SETTI
 cases.push({ group: 'mic', name: 'paused and lost microphone', settings: SETTINGS, mic: true });
 cases.push({ group: 'song', name: 'Hänschen klein', settings: SETTINGS, song: true });
 cases.push({ group: 'song', name: 'Hänschen klein – Duett', settings: SETTINGS, duet: true });
+cases.push({ group: 'song', name: 'Hänschen klein – Duett, einfach', settings: SETTINGS, duet: true, simple: true });
 
 const selected = cases.filter(c => !filters.length || filters.some(w => c.group.includes(w) || c.name.includes(w)));
 
@@ -182,7 +183,9 @@ async function startWorker(n) {
   const port = 9400 + n + Math.floor(Math.random() * 400);
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'concertina-test-'));
   const proc = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
-    '--autoplay-policy=no-user-gesture-required', '--no-first-run', '--mute-audio', 'about:blank'], { stdio: 'ignore' });
+    // --disable-audio-output: a fake output device, so the audio clock runs even when the system's sound
+    // doesn't (seen after a reboot: AudioContext "running" with currentTime stuck at 0, every case timing out)
+    '--autoplay-policy=no-user-gesture-required', '--disable-audio-output', '--no-first-run', '--mute-audio', 'about:blank'], { stdio: 'ignore' });
   chromes.add(proc);
   proc.on('exit', () => chromes.delete(proc));
   let target;
@@ -221,13 +224,14 @@ async function runCase(w, c) {
   await w.ev(`localStorage.setItem('noteListener.settings', ${JSON.stringify(JSON.stringify(c.settings))})`);
   if (c.song) await w.ev(`localStorage.setItem('noteListener.songTempo', '160')`);
   if (c.duet) await w.ev(`localStorage.setItem('noteListener.duetTempo', '160')`);
+  if (c.duet) await w.ev(`localStorage.setItem('noteListener.duetVersion', '${c.simple ? 'simple' : 'full'}')`);
   await w.open(c.song ? 'song.html' : c.duet ? 'duet.html' : 'index.html');
   w.errors.length = 0;
   if (c.play) return runPlayCase(w);
   if (c.mic) return runMicCase(w);
   if (c.hear) return runHearCase(w);
   if (c.song) return runSongCase(w);
-  if (c.duet) return runDuetCase(w);
+  if (c.duet) return c.simple ? runDuetSimpleCase(w) : runDuetCase(w);
   await w.ev(`document.getElementById('start').click()`);
   await sleep(150);
   await w.ev(`window.__play(${JSON.stringify(c.files)})`);
@@ -417,6 +421,37 @@ async function runSongCase(w) {
 
 // Duet page: from "eilt nach Haus ge-" to the end. Both hands' buttons must light up as written, the
 // bellows-shake bar (E4 G4 C5 over C3 G3) must pulse at about 7 Hz, and playback must stop at the end.
+// Chord letters above the duet's staff: C and G only, at each of the 17 harmony changes (plus at line
+// starts that keep the chord)
+async function checkDuetChordLetters(w, problems) {
+  const letters = (await w.ev(`[...document.querySelectorAll('.score .chord-sym')].map(t => t.textContent).join(' ')`)).split(' ');
+  if (letters.some(l => !['C', 'G'].includes(l)) || letters.length < 17) problems.push(`chord letters: ${letters.join(' ')}`);
+}
+
+// Simple duet: chord letters as in the full version, and never more than one button per hand
+async function runDuetSimpleCase(w) {
+  const problems = [];
+  if (!await w.ev(`document.getElementById('verSimple').getAttribute('aria-pressed') === 'true'`)) problems.push('simple version not restored');
+  await checkDuetChordLetters(w, problems);
+  await w.ev(`[...document.querySelectorAll('.score .ev')].find(g => g.textContent === 'eilt')
+    .dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
+  const seen = await w.ev(`(async () => {
+    const seen = new Set(), chords = new Set();
+    const t0 = performance.now();
+    while (performance.now() - t0 < 7000) {
+      await new Promise(r => setTimeout(r, 20));
+      seen.add([...document.querySelectorAll('.maccann .btn')].map((g, i) => g.classList.contains('on') ? (i < 25 ? 'L' : 'R') + g.querySelector('text').textContent : '').filter(Boolean).sort().join(' '));
+      const now = document.querySelector('.score .chord-sym.now'); if (now) chords.add(now.textContent);
+    }
+    return { lit: [...seen], chords: [...chords] };
+  })()`);
+  for (const l of seen.lit) if (l.split(' ').filter(x => x[0] === 'L').length > 1 || l.split(' ').filter(x => x[0] === 'R').length > 1) problems.push(`more than one button in a hand: ${l}`);
+  for (const want of ['LC3 RC5', 'LC3 RC6']) if (!seen.lit.includes(want)) problems.push(`never lit: ${want}`);
+  if (!seen.chords.includes('C') || !seen.chords.includes('G')) problems.push(`current chord letter lit: ${seen.chords.join(' ') || 'none'}`);
+  if (w.errors.length) problems.push(`page error: ${w.errors[0]}`);
+  return problems.join('; ') || null;
+}
+
 async function runDuetCase(w) {
   await w.ev(`[...document.querySelectorAll('.score .ev')].find(g => g.textContent === 'eilt')
     .dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
@@ -436,6 +471,7 @@ async function runDuetCase(w) {
     return seen;
   })()`);
   const problems = [];
+  await checkDuetChordLetters(w, problems);
   const chords = [...new Set(seen.map(s => s.lit))];
   for (const want of ['LC3 LG3 RC5 RE4 RG4', 'LC3 LC4 LG3 RC6 RE5 RG5', 'LC4 LE3 RC5 RE5'])
     if (!chords.includes(want)) problems.push(`never lit: ${want}`);
