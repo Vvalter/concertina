@@ -3,16 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Guter Mond, du gehst so stille – Begleitung</title>
+<title>Guter Mond, du gehst so stille – vierstimmiger Choral</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2f6fdb">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V16">
+<link rel="stylesheet" href="concertina.css?v=V17">
 <style>
   a.back { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
   .intro { color: var(--muted); font-size: 0.9rem; margin: 0; line-height: 1.45; }
   .controls input[type=range] { width: 9em; accent-color: var(--accent); }
   .tempo-value { font-variant-numeric: tabular-nums; min-width: 4.5em; }
+  .voices { display: flex; gap: 4px 12px; flex-wrap: wrap; align-items: center; }
+  .voices label { gap: 4px; }
+  .voices input { accent-color: var(--accent); }
   svg.score { width: 100%; height: auto; display: block; }
   .score .l { stroke: var(--ink); stroke-width: 1.1; }
   .score .bar { stroke: var(--ink); stroke-width: 1.4; }
@@ -58,25 +65,37 @@
   <header>
     <div>
       <a class="back" href="index.html">← Note Listener</a>
-      <h1>Guter Mond, du gehst so stille – Begleitung</h1>
+      <h1>Guter Mond, du gehst so stille – vierstimmiger Choral</h1>
     </div>
     <div class="controls">
-      <div class="seg" role="group" aria-label="Melodie">
-        <button id="melOff" aria-pressed="true" title="Nur die linke Hand klingt, die Melodie spielst du">Nur Begleitung</button>
-        <button id="melOn" aria-pressed="false" title="Die Melodie klingt mit">Mit Melodie</button>
+      <div class="seg" role="group" aria-label="Fassung">
+        <button id="varPlain" aria-pressed="true" title="Alle Stimmen gehen zusammen, Note gegen Note">Schlicht</button>
+        <button id="varMoving" aria-pressed="false" title="Gleiche Harmonien, Alt, Tenor und Bass mit Durchgangsachteln">Mit Durchgängen</button>
       </div>
-      <label>Tempo <input id="tempo" type="range" min="48" max="120" step="4" value="76">
-        <span class="tempo-value" id="tempoValue">76 bpm</span></label>
+      <div class="seg" role="group" aria-label="Alt">
+        <button id="altLeft" aria-pressed="true" title="Rechte Hand nur die Melodie, links die dreistimmige Begleitung">Begleitung links</button>
+        <button id="altRight" aria-pressed="false" title="Der Alt geht in die rechte Hand, wo sie den Ton hat">Alt rechts</button>
+      </div>
+      <label>Tempo <input id="tempo" type="range" min="40" max="112" step="4" value="66">
+        <span class="tempo-value" id="tempoValue">66 bpm</span></label>
       <button id="play" class="start" data-play>▶ Play</button>
+      <div class="voices" role="group" aria-label="Es klingt">Es klingt:
+        <label><input type="checkbox" data-voice="S"> Sopran</label>
+        <label><input type="checkbox" data-voice="A" checked> Alt</label>
+        <label><input type="checkbox" data-voice="T" checked> Tenor</label>
+        <label><input type="checkbox" data-voice="B" checked> Bass</label>
+      </div>
     </div>
   </header>
 
   <p class="intro">
-    Begleitung in C-Dur zum Mitspielen, dreistimmig wie ein Bach-Choral: die linke Hand hat zwei eigene
-    Stimmen, Bass (Hals nach unten) und Tenor (Hals nach oben), mit Durchgangstönen und Gegenbewegung zur Melodie.
-    Die Melodie oben spielst du mit der rechten Hand, ihre Knöpfe leuchten mit.
-    Der erste Takt ist ein Vorspiel, in dem der Tenor den Anfang der Melodie vorwegnimmt; „Gu-ter“ setzt im
-    zweiten Takt auf Schlag 4 ein. <b>Mit Melodie</b> spielt die Melodie zum Anhören mit.
+    Vierstimmiger Choralsatz in C-Dur: die rechte Hand spielt nur die Melodie (beginnt mit g'), darunter eine
+    dreistimmige Begleitung – Alt, Tenor und Bass – im Choralstil, alle Stimmen gehen zusammen.
+    <b>Begleitung links</b>: alle drei Begleitstimmen in der linken Hand. <b>Alt rechts</b>: der Alt geht in die
+    rechte Hand, wo sie den Ton hat. <b>Schlicht</b>: ein Akkord pro Schlag; <b>Mit Durchgängen</b>: dieselben
+    Harmonien, die Begleitstimmen füllen mit Achteln. Unter „Es klingt“ wählst du, welche Stimmen die Seite
+   spielt. Jede Notenzeile zeigt eine Hand; in der unteren haben Alt und Tenor den Hals nach oben, der Bass nach unten.
+    Takt 1 ist ein Vorspiel, „Gu-ter“ setzt in Takt 2 auf Schlag 4 ein.
   </p>
 
   <section class="card">
@@ -97,100 +116,124 @@
   <div class="status" id="status"></div>
 </main>
 
-<script src="concertina.js?v=V16"></script>
+<script src="concertina.js?v=V17"></script>
+<script src="pwa.js?v=V17"></script>
 <script>
 (() => {
   const { SVG_NS, ACC, label, toMidi, buildMaccann, sampleFor, loopCache, playNote, spell } = Concertina;
   const $ = id => document.getElementById(id);
 
-  // ---------- the song ----------
-  // One string per bar and voice: <note>:<length in quarters>[:<syllable>], r for a rest.
-  // Melody transposed from G to C major (liederkiste.com, "Volksweise seit Anfang des 19. Jahrhunderts").
-  // Bar 0 is the intro; the pickup "Gu-ter" is on beat 4 of bar 1.
-  const MELODY = [
+  // ---------- the chorale ----------
+  // C major; the melody starts on g'. Tokens: <note>:<length in quarters>[:<syllable>], r for a rest.
+  // Ranges (written): soprano C4–A4, alto B3–F4, tenor E3–C4, bass C3–G3 (the left hand's lowest button is C3).
+  // Melody: liederkiste.com, "Volksweise seit Anfang des 19. Jahrhunderts", transposed from G.
+  const SOPRANO = [
     'r:4',
-    'r:2 r:1 G5:0.5:Gu- F5:0.5:ter',
-    'E5:1:Mond, E5:1:du E5:0.5:gehst F5:0.5 G5:0.5:so A5:0.5',
-    'G5:0.5:stil- F5:0.5 D5:1:le r:1 G5:0.5:durch F5:0.5:die',
-    'E5:1:A- E5:1:bend- D5:0.5:wol- C5:0.5 D5:0.5:ken E5:0.5',
-    'C5:2:hin, r:1 G5:0.5:blickst F5:0.5:so',
-    'E5:1:trau- E5:1:rig E5:0.5:und F5:0.5 G5:0.5:ich A5:0.5',
-    'G5:0.5:füh- F5:0.5 D5:1:le, r:1 G5:0.5:dass F5:0.5:ich',
-    'E5:1:oh- E5:1:ne D5:0.5:Ru- C5:0.5 D5:0.5:he E5:0.5',
-    'C5:2:bin. r:1 D5:0.5:Trau- E5:0.5:rig',
-    'F5:1:fol- D5:1:gen r:1 E5:0.5:mei- F5:0.5:ne',
-    'G5:1:Bli- E5:1:cke r:1 G5:0.5:dei- G5:0.5:ner',
-    'A5:1.5:stil- G5:0.5:len, A5:0.5:hei- G5:0.5 F5:0.5:tren E5:0.5',
-    'E5:1:Bahn. D5:1 r:1 G5:0.5:Oh, F5:0.5:wie',
-    'E5:1:hart E5:1:ist E5:0.5:mein F5:0.5 G5:0.5:Ge- A5:0.5',
-    'G5:0.5:schi- F5:0.5 D5:1:cke, r:1 G5:0.5:dass F5:0.5:ich',
-    'E5:1:dir E5:1:nicht D5:0.5:fol- C5:0.5 D5:0.5:gen E5:0.5',
-    'C5:2:kann. r:2',
+    'r:2 r:1 G4:0.5:Gu- F4:0.5:ter',
+    'E4:1:Mond, E4:1:du E4:0.5:gehst F4:0.5 G4:0.5:so A4:0.5',
+    'G4:0.5:stil- F4:0.5 D4:1:le r:1 G4:0.5:durch F4:0.5:die',
+    'E4:1:A- E4:1:bend- D4:0.5:wol- C4:0.5 D4:0.5:ken E4:0.5',
+    'C4:2:hin, r:1 G4:0.5:blickst F4:0.5:so',
+    'E4:1:trau- E4:1:rig E4:0.5:und F4:0.5 G4:0.5:ich A4:0.5',
+    'G4:0.5:füh- F4:0.5 D4:1:le, r:1 G4:0.5:dass F4:0.5:ich',
+    'E4:1:oh- E4:1:ne D4:0.5:Ru- C4:0.5 D4:0.5:he E4:0.5',
+    'C4:2:bin. r:1 D4:0.5:Trau- E4:0.5:rig',
+    'F4:1:fol- D4:1:gen r:1 E4:0.5:mei- F4:0.5:ne',
+    'G4:1:Bli- E4:1:cke r:1 G4:0.5:dei- G4:0.5:ner',
+    'A4:1.5:stil- G4:0.5:len, A4:0.5:hei- G4:0.5 F4:0.5:tren E4:0.5',
+    'E4:1:Bahn. D4:1 r:1 G4:0.5:Oh, F4:0.5:wie',
+    'E4:1:hart E4:1:ist E4:0.5:mein F4:0.5 G4:0.5:Ge- A4:0.5',
+    'G4:0.5:schi- F4:0.5 D4:1:cke, r:1 G4:0.5:dass F4:0.5:ich',
+    'E4:1:dir E4:1:nicht D4:0.5:fol- C4:0.5 D4:0.5:gen E4:0.5',
+    'C4:2:kann. r:2',
   ];
-  // The left hand: two independent voices in chorale style (both within the left hand's C3–C5).
-  // Tenor moves in eighths where the melody holds or rests, the bass mostly in quarters, often against
-  // the melody's direction; leading tones (B3) go up to C, sevenths (F) down to E.
-  const LINE_C = ['C4:0.5 D4:0.5 E4:1 C4:0.5 B3:0.5 A3:1', 'C3:1 A3:1 G3:1 F3:1'];        // "Mond, du gehst so"
-  const LINE_G = ['A3:1 B3:1 D4:0.5 E4:0.5 B3:1', 'D3:1 G3:1 B3:0.5 A3:0.5 G3:1'];         // "stil-le, durch die"
-  const LINE_K = ['C4:1 G4:1 F4:1 E4:0.5 D4:0.5', 'C3:1 C4:1 B3:1 G3:1'];                  // "A-bend-wol-ken"
-  const LEFT = [  // [tenor, bass]
-    ['G4:0.5 F4:0.5 E4:1 E4:0.5 F4:0.5 G4:1', 'C3:1 C4:1 G3:1 A3:1'],   // intro: the tenor has the opening
-    ['A4:1 G4:1 F4:0.5 E4:0.5 D4:1', 'F3:1 E3:1 D3:1 G3:1'],
-    LINE_C, LINE_G, LINE_K,
-    ['E4:0.5 D4:0.5 C4:0.5 D4:0.5 E4:0.5 C4:0.5 B3:1', 'C3:1 E3:1 F3:1 G3:1'],
-    LINE_C, LINE_G, LINE_K,
-    ['E4:0.5 F4:0.5 G4:1 C4:0.5 E4:0.5 B3:1', 'C3:1 E3:1 A3:1 G3:1'],
-    ['A3:0.5 B3:0.5 C4:0.5 A3:0.5 B3:1 D4:1', 'F3:2 G3:1 B3:1'],
-    ['E4:1 C4:1 C4:0.5 D4:0.5 E4:0.5 C4:0.5', 'C4:1 G3:1 A3:1 E3:1'],
-    ['C4:1 F4:0.5 E4:0.5 E4:1 D4:0.5 B3:0.5', 'F3:1 D3:1 C3:1 G3:1'],
-    ['C4:0.5 E4:0.5 B3:1 D4:0.5 C4:0.5 B3:1', 'C3:1 G3:1 F3:0.5 E3:0.5 D3:1'],
-    LINE_C, LINE_G, LINE_K,
-    ['E4:4', 'C3:4'],
-  ];
-  // Chord symbols per bar: one per beat ('-' = no new symbol), or one for the whole bar
+  // Alto, tenor, bass per bar. The three phrases "Mond, du gehst so" (P1), "stil-le, durch die" (P2) and
+  // "A-bend-wol-ken" (P3) come back three times with the same setting.
+  const PLAIN = (() => {
+    const P1 = ['C4:4', 'G3:2 A3:2', 'C3:1 E3:2 F3:1'];
+    const P2 = ['C4:1 D4:3', 'A3:1 B3:3', 'D3:1 G3:3'];
+    const P3 = ['C4:2 B3:2', 'G3:1 E3:1 G3:1 F3:1', 'C3:2 D3:2'];
+    return [
+      ['E4:1 F4:1 D4:1 E4:1', 'G3:1 A3:1 B3:1 C4:1', 'C3:1 F3:1 G3:1 C3:1'],   // intro: C F G C
+      ['E4:2 E4:1 D4:1', 'C4:2 C4:1 B3:1', 'C3:2 E3:1 G3:1'],
+      P1, P2, P3,
+      ['C4:3 B3:1', 'E3:2 G3:2', 'C3:2 E3:1 D3:1'],
+      P1, P2, P3,
+      ['C4:3 B3:1', 'E3:2 A3:1 G3:1', 'C3:2 E3:1 D3:1'],
+      ['C4:1 B3:1 D4:2', 'A3:1 G3:1 B3:2', 'D3:2 G3:2'],
+      ['E4:1 C4:2 E4:1', 'G3:2 A3:1 E3:1', 'C3:1 E3:2 C3:1'],
+      ['C4:1 F4:1 E4:1 D4:1', 'A3:2 C4:1 B3:1', 'F3:1 D3:1 C3:1 G3:1'],
+      ['C4:1 B3:1 D4:2', 'G3:2 B3:2', 'C3:1 D3:1 G3:2'],
+      P1, P2, P3,
+      ['C4:4', 'E3:4', 'C3:4'],
+    ];
+  })();
+  // The same harmonies with passing and neighbour eighths (off the beat, so the chords stay)
+  const MOVING = (() => {
+    const P1 = ['C4:1 D4:0.5 C4:0.5 C4:2', 'G3:1 F3:0.5 G3:0.5 A3:2', 'C3:0.5 D3:0.5 E3:2 F3:1'];
+    const P2 = ['C4:1 D4:3', 'A3:1 B3:1 C4:0.5 B3:0.5 B3:1', 'D3:1 G3:1 F3:0.5 D3:0.5 G3:1'];
+    const P3 = ['C4:2 B3:2', 'G3:1 E3:1 G3:1 F3:1', 'C3:0.5 E3:0.5 C3:1 D3:2'];
+    return [
+      ['E4:1 F4:0.5 E4:0.5 D4:1 E4:1', 'G3:1 A3:0.5 G3:0.5 B3:1 C4:1', 'C3:1 F3:1 G3:1 C3:1'],
+      ['E4:1 F4:0.5 E4:0.5 E4:1 D4:1', 'C4:1 B3:0.5 A3:0.5 G3:1 B3:1', 'C3:2 E3:0.5 F3:0.5 G3:1'],
+      P1, P2, P3,
+      ['C4:2 C4:0.5 D4:0.5 B3:1', 'E3:1 F3:0.5 G3:0.5 G3:2', 'C3:1.5 D3:0.5 E3:1 D3:1'],
+      P1, P2, P3,
+      ['C4:3 B3:1', 'E3:1 F3:0.5 G3:0.5 A3:1 G3:1', 'C3:1.5 D3:0.5 E3:1 D3:1'],
+      ['C4:1 B3:1 D4:2', 'A3:1 G3:0.5 A3:0.5 B3:2', 'D3:2 G3:2'],
+      ['E4:1.5 D4:0.5 C4:1 E4:1', 'G3:2 A3:1 E3:1', 'C3:0.5 D3:0.5 E3:1 E3:0.5 D3:0.5 C3:1'],
+      ['C4:0.5 D4:0.5 F4:1 E4:1 D4:1', 'A3:2 C4:1 B3:1', 'F3:0.5 E3:0.5 D3:1 C3:1 G3:1'],
+      ['C4:1 B3:1 B3:0.5 C4:0.5 D4:1', 'G3:2 B3:2', 'C3:1 D3:1 G3:2'],
+      P1, P2, P3,
+      ['C4:4', 'E3:4', 'C3:4'],
+    ];
+  })();
+  const VARIANTS = { plain: PLAIN, moving: MOVING };
+  // Chord symbols (written in C; shown in C♯), one per beat ('-' = none) or one per bar
   const HARMONY = [
-    'C - C/G Am', 'F C/E Dm G7', 'C Am C/G F', 'Dm G - G7', 'C - G7/B G', 'C C/E F G7',
-    'C Am C/G F', 'Dm G - G7', 'C - G7/B G', 'C C/E Am G', 'F Dm/F G G7/B', 'C C/G Am C/E',
-    'F Dm Am/C G7', 'C G - G7/D', 'C Am C/G F', 'Dm G - G7', 'C - G7/B G', 'C',
+    'C F G C', 'C - C/E G7', 'C C/E Am/E F', 'Dm7 G - G7', 'C - G/D G7/D', 'C - C/E G/D',
+    'C C/E Am/E F', 'Dm7 G - G7', 'C - G/D G7/D', 'C - Am/E G/D', 'Dm7 G/D G -', 'C C/E Am/E C',
+    'F Dm Am/C G7', 'C G/D G -', 'C C/E Am/E F', 'Dm7 G - G7', 'C - G/D G7/D', 'C',
   ];
   const SECTIONS = { 0: 'Vorspiel', 1: 'Strophe' };
   const BEATS = 4;
-  const BARS = MELODY.map((m, i) => [m, ...LEFT[i]]);
   const harmony = HARMONY.flatMap((h, bar) => {
     const names = h.split(' ');
     return names.map((name, i) => ({ name, beat: bar * BEATS + i * BEATS / names.length })).filter(x => x.name !== '-');
   });
-  const chordText = name => name;
+  const SLOW = SOPRANO.map((_, b) => b === SOPRANO.length - 2 ? 1.12 : b === SOPRANO.length - 1 ? 1.4 : 1);
+  const totalBars = SOPRANO.length, totalBeats = totalBars * BEATS;
 
-  // Per bar: slowing (1 = in tempo) — a ritardando into the last note
-  const SLOW = BARS.map((_, b) => b === BARS.length - 2 ? 1.12 : b === BARS.length - 1 ? 1.35 : 1);
+  const spelled = n => spell(toMidi(n), false);   // all notes are naturals
 
-  // Written spelling of a note, in the shape Concertina.spell returns
-  const LETTERS = 'CDEFGAB';
-  function written(n) {
-    const [, l, a, o] = n.match(/^([A-G])(#|b)?(\d)$/);
-    const li = LETTERS.indexOf(l), acc = a === '#' ? 1 : a === 'b' ? -1 : 0, octave = Number(o);
-    const helmLetter = octave >= 3 ? l.toLowerCase() : l, primes = octave >= 4 ? "'".repeat(octave - 3) : '';
-    return { letter: l, letterIndex: li, acc, octave, text: l + ACC[acc] + octave, helmLetter, primes, sub: '',
-      helmText: helmLetter + ACC[acc] + primes };
-  }
+  // ---------- settings ----------
+  const store = (k, v) => { try { localStorage.setItem('noteListener.choral.' + k, JSON.stringify(v)); } catch { } };
+  const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem('noteListener.choral.' + k)); return v ?? d; } catch { return d; } };
+  let variant = load('variant', 'plain'), altHand = load('altHand', 'left');
+  const audible = load('voices', { S: false, A: true, T: true, B: true });
 
-  let withMelody = false;
-  try { withMelody = localStorage.getItem('noteListener.backingMelody') === 'on'; } catch { }
-  const events = [];   // { hand, voice, bar, beat (from the start), beats, notes (written), midis, syllable }
-  BARS.forEach(([melody, tenor, bass], bar) => {
-    for (const [hand, voice, line] of [['right', 'melody', melody], ['left', 'tenor', tenor], ['left', 'bass', bass]]) {
-      let beat = bar * BEATS;
-      for (const tok of line.trim().split(/\s+/)) {
-        const [notes, len, syllable] = tok.split(':');
-        const names = notes === 'r' ? [] : notes.split('+');
-        events.push({ hand, voice, bar, beat, beats: Number(len), notes: names.map(written), midis: names.map(toMidi), syllable });
-        beat += Number(len);
+  let events = [], onsets = [];   // { voice, hand, bar, beat, beats, notes (spelling), midis, syllable }
+  function buildEvents() {
+    events = [];
+    const bars = VARIANTS[variant];
+    SOPRANO.forEach((s, bar) => {
+      const [a, t, b] = bars[bar];
+      for (const [voice, line] of [['S', s], ['A', a], ['T', t], ['B', b]]) {
+        const wanted = voice === 'S' || (voice === 'A' && altHand === 'right') ? 'right' : 'left';
+        let beat = bar * BEATS;
+        for (const tok of line.trim().split(/\s+/)) {
+          const [n, len, syllable] = tok.split(':');
+          const names = n === 'r' ? [] : [n];
+          const midis = names.map(toMidi);
+          // A note the hand doesn't have (in C major the alto's B3: the right hand starts at C4) goes to the other hand
+          const hand = midis.every(m => buttonFor(wanted, m)) ? wanted : wanted === 'right' ? 'left' : 'right';
+          events.push({ voice, hand, bar, beat, beats: Number(len), notes: names.map(spelled), midis, syllable });
+          beat += Number(len);
+        }
       }
-    }
-  });
-  const onsets = [...new Set(events.map(e => e.beat))].sort((a, b) => a - b);
-  const totalBeats = BARS.length * BEATS;
+    });
+    onsets = [...new Set(events.map(e => e.beat))].sort((a, b) => a - b);
+  }
 
   let flats = false, helm = true;
   try {
@@ -198,7 +241,7 @@
     if (saved) { flats = !!saved.flats; helm = saved.helm !== false; }
   } catch { /* defaults */ }
 
-  // ---------- score: grand staff, melody on top, tenor and bass below ----------
+  // ---------- score: two voices per staff ----------
   const score = $('score');
   const S = 9;
   function svgEl(name, attrs, parent = score, text) {
@@ -210,14 +253,15 @@
   }
   const RESTS = { 4: '𝄻', 2: '𝄼', 1: '𝄽', 0.5: '𝄾' };
   const REST_Y = { 4: 1, 2: 0, 1: 0, 0.5: 0 };
+  const UPPER = { S: true, A: false, T: true, B: false };   // stem direction per voice
 
   function drawScore() {
     score.textContent = '';
     for (const h of harmony) h.el = null;
     const perLine = score.clientWidth && score.clientWidth < 560 ? 2 : 3;
     const W = perLine === 2 ? 420 : 800;
-    const SYS_H = 275, TREBLE_TOP = 66, BASS_TOP = TREBLE_TOP + 4 * S + 118;  // room for the tenor's ledger lines
-    const lines = Math.ceil(BARS.length / perLine);
+    const SYS_H = 270, TREBLE_TOP = 62, BASS_TOP = TREBLE_TOP + 4 * S + 112;
+    const lines = Math.ceil(totalBars / perLine);
     score.setAttribute('viewBox', `0 0 ${W} ${lines * SYS_H + 10}`);
     for (let l = 0; l < lines; l++) {
       const y0 = l * SYS_H;
@@ -240,8 +284,8 @@
       }
       for (let i = 0; i < perLine; i++) {
         const bar = l * perLine + i;
-        if (bar >= BARS.length) break;
-        const x0 = LEAD + i * barW, last = bar === BARS.length - 1;
+        if (bar >= totalBars) break;
+        const x0 = LEAD + i * barW, last = bar === totalBars - 1;
         svgEl('line', { class: 'bar', x1: x0 + barW, x2: x0 + barW, y1: trebleBottom - 4 * S, y2: bassBottom, 'stroke-width': last ? 3 : 1.4 });
         const times = onsets.filter(b => b >= bar * BEATS && b < (bar + 1) * BEATS);
         const room = times.map((b, k) => Math.sqrt((times[k + 1] ?? (bar + 1) * BEATS) - b));
@@ -250,57 +294,51 @@
         let x = x0 + 22;
         times.forEach((b, k) => { xOf.set(b, x); x += room[k] * unit; });
         for (const h of harmony.filter(h => Math.floor(h.beat / BEATS) === bar)) {
-          const prev = harmony[harmony.indexOf(h) - 1];
-          if (prev && prev.name === h.name && !(i === 0 && h.beat % BEATS === 0)) continue;
-          h.el = svgEl('text', { class: 'chord-sym', x: (xOf.get(h.beat) ?? x0 + 22) - 5, y: trebleBottom - 4 * S - 18 }, score, chordText(h.name));
+          h.el = svgEl('text', { class: 'chord-sym', x: (xOf.get(h.beat) ?? x0 + 22) - 5, y: trebleBottom - 4 * S - 18 }, score, h.name);
         }
         for (const e of events.filter(e => e.bar === bar)) {
+          // Each staff shows its hand: top the right hand, bottom the left
           drawEvent(e, xOf.get(e.beat), e.hand === 'right' ? trebleBottom : bassBottom, e.hand === 'right');
         }
       }
     }
+    markMuted();
     showNow(nowBeat, true);
   }
 
   function drawEvent(e, x, bottom, treble) {
     const g = svgEl('g', { class: 'ev' });
     e.el = g;
+    // Stems: melody up, alto down under the melody but up next to tenor and bass; tenor up, bass down
+    const up = e.voice === 'A' ? !treble : UPPER[e.voice];
     svgEl('rect', { class: 'hit', x: x - 13, y: bottom - 8 * S, width: 26, height: 12 * S }, g);
     g.addEventListener('click', () => play(e.beat));
     if (!e.midis.length) {
-      svgEl('text', { class: 'glyph rest', x: x - 6, y: bottom - REST_Y[e.beats] * S, 'font-size': 4 * S }, g, RESTS[e.beats]);
+      // Rests of the upper voice sit high, of the lower voice low
+      const shared = !(e.voice === 'S' && altHand === 'left');
+      svgEl('text', { class: 'glyph rest', x: x - 6, y: bottom - REST_Y[e.beats] * S - (shared ? (up ? 2 * S : -S) : 0), 'font-size': 4 * S }, g, RESTS[e.beats]);
       return;
     }
     const ref = treble ? 4 * 7 + 2 /* E4 */ : 2 * 7 + 4 /* G2 */;
-    const heads = e.notes.map(sp => {
-      const step = sp.octave * 7 + sp.letterIndex - ref;
-      return { sp, step, y: bottom - step * S / 2 };
-    }).sort((a, b) => a.step - b.step);
-    const lo = heads[0].step, hi = heads[heads.length - 1].step;
-    for (let st = -2; st >= lo; st -= 2) svgEl('line', { class: 'ledger', x1: x - 10, x2: x + 10, y1: bottom - st * S / 2, y2: bottom - st * S / 2 }, g);
-    for (let st = 10; st <= hi; st += 2) svgEl('line', { class: 'ledger', x1: x - 10, x2: x + 10, y1: bottom - st * S / 2, y2: bottom - st * S / 2 }, g);
-    // Two voices on the bass staff: tenor stems up, bass stems down
-    const up = e.voice === 'tenor' ? true : e.voice === 'bass' ? false : (lo + hi) / 2 < 4;
+    const sp = e.notes[0], step = sp.octave * 7 + sp.letterIndex - ref, y = bottom - step * S / 2;
+    for (let st = -2; st >= step; st -= 2) svgEl('line', { class: 'ledger', x1: x - 10, x2: x + 10, y1: bottom - st * S / 2, y2: bottom - st * S / 2 }, g);
+    for (let st = 10; st <= step; st += 2) svgEl('line', { class: 'ledger', x1: x - 10, x2: x + 10, y1: bottom - st * S / 2, y2: bottom - st * S / 2 }, g);
     const len = e.beats === 1.5 ? 1 : e.beats;
-    heads.forEach((h, k) => {
-      const shifted = k > 0 && h.step - heads[k - 1].step === 1 && !heads[k - 1].shifted;
-      h.shifted = shifted;
-      const hx = x + (shifted ? (up ? 11 : -11) : 0);
-      svgEl('ellipse', { class: 'head ' + (len >= 2 ? 'open' : 'filled'), cx: hx, cy: h.y, rx: 5.8, ry: 4,
-        transform: `rotate(-20 ${hx} ${h.y})` }, g);
-      if (e.beats === 1.5) svgEl('circle', { class: 'dot', cx: hx + 10, cy: h.y - (h.step % 2 ? 0 : S / 2), r: 1.8 }, g);
-      if (h.sp.acc) svgEl('text', { class: 'glyph', x: x - 20, y: h.y, 'font-size': 4 * S }, g, ACC[h.sp.acc]);
-    });
+    svgEl('ellipse', { class: 'head ' + (len >= 2 ? 'open' : 'filled'), cx: x, cy: y, rx: 5.8, ry: 4, transform: `rotate(-20 ${x} ${y})` }, g);
+    if (e.beats === 1.5) svgEl('circle', { class: 'dot', cx: x + 10, cy: y - (step % 2 ? 0 : S / 2), r: 1.8 }, g);
     if (len < 4) {
-      const sx = up ? x + 5.3 : x - 5.3;
-      const y1 = up ? heads[0].y : heads[heads.length - 1].y, y2 = up ? heads[heads.length - 1].y - 3.5 * S : heads[0].y + 3.5 * S;
-      svgEl('line', { class: 'stem', x1: sx, x2: sx, y1, y2 }, g);
+      const sx = up ? x + 5.3 : x - 5.3, y2 = up ? y - 3.5 * S : y + 3.5 * S;
+      svgEl('line', { class: 'stem', x1: sx, x2: sx, y1: y, y2 }, g);
       if (len === 0.5) {
         const d = up ? 1 : -1;
         svgEl('path', { class: 'flag', d: `M${sx} ${y2} q 2 ${8 * d} 9 ${12 * d} q 3 ${5 * d} -1 ${11 * d}` }, g);
       }
     }
-    if (e.syllable) svgEl('text', { class: 'lyric', x, y: bottom + 3.4 * S }, g, e.syllable);
+    if (e.syllable) svgEl('text', { class: 'lyric', x, y: bottom + (altHand === 'left' ? 3.4 : 6.4) * S }, g, e.syllable);
+  }
+
+  function markMuted() {
+    for (const e of events) e.el?.classList.toggle('muted', !audible[e.voice]);
   }
 
   // ---------- keyboard and "now" display ----------
@@ -315,7 +353,7 @@
   const soundingAt = beat => events.filter(e => e.beat <= beat && beat < e.beat + e.beats);
   const sectionAt = bar => { for (let b = bar; b >= 0; b--) if (SECTIONS[b]) return SECTIONS[b]; return ''; };
 
-  let nowBeat = 0, nowKey = '';
+  let nowBeat = 0, nowKey = '', playing = false;
   function showNow(beat, force) {
     const now = soundingAt(beat);
     const key = now.map(e => events.indexOf(e)).join();
@@ -335,7 +373,7 @@
     }
     for (const [hand, id] of [['right', 'nowRight'], ['left', 'nowLeft']]) {
       const notes = now.filter(x => x.hand === hand).flatMap(x => x.notes.map((sp, i) => ({ sp, midi: x.midis[i] })))
-        .sort((a, b) => a.midi - b.midi);
+        .sort((a, b) => a.midi - b.midi).filter((n, i, a) => i === 0 || n.midi !== a[i - 1].midi);
       $(id).innerHTML = `<span>${hand === 'right' ? 'R' : 'L'}</span>`;
       $(id).append(notes.length ? notes.map(n => label(n.sp, helm)).join(' ') : '–');
     }
@@ -355,16 +393,16 @@
   };
 
   // ---------- playback ----------
-  let ctx = null, out = null, getLoop = null, voices = [], rafId = 0, playing = false, timeline = null;
-  let hands = null;
+  let ctx = null, out = null, getLoop = null, sources = [], rafId = 0, timeline = null, voiceGain = null;
   const tempoInput = $('tempo');
+  const LEVEL = { S: 1, A: 0.75, T: 0.75, B: 0.95 };
 
   function makeTimeline(fromBeat, t0) {
     const spb = 60 / Number(tempoInput.value);
     const barStart = [0];
-    for (let b = 0; b < BARS.length; b++) barStart.push(barStart[b] + BEATS * spb * SLOW[b]);
+    for (let b = 0; b < totalBars; b++) barStart.push(barStart[b] + BEATS * spb * SLOW[b]);
     const abs = beat => {
-      const b = Math.min(BARS.length - 1, Math.floor(beat / BEATS));
+      const b = Math.min(totalBars - 1, Math.floor(beat / BEATS));
       return barStart[b] + (beat - b * BEATS) * spb * SLOW[b];
     };
     const offset = t0 - abs(fromBeat);
@@ -373,7 +411,7 @@
       beat: t => {
         const a = t - offset;
         let b = 0;
-        while (b < BARS.length - 1 && barStart[b + 1] <= a) b++;
+        while (b < totalBars - 1 && barStart[b + 1] <= a) b++;
         return b * BEATS + (a - barStart[b]) / (spb * SLOW[b]);
       },
     };
@@ -385,18 +423,19 @@
     g.cancelScheduledValues(0);
     g.setValueAtTime(0, t0 - 0.05);
     for (let beat = fromBeat; beat <= totalBeats; beat += 0.125) {
-      const bar = Math.min(BARS.length - 1, Math.floor(beat / BEATS));
+      const bar = Math.min(totalBars - 1, Math.floor(beat / BEATS));
       const f = (beat - bar * BEATS) / BEATS;
       const phrase = (beat % (2 * BEATS)) / (2 * BEATS);
       const swell = 0.9 + 0.12 * Math.sin(Math.PI * phrase);
       const reversal = beat % (2 * BEATS) < 0.15 && beat > 0 ? 0.8 : 1;
-      const fadeOut = bar === BARS.length - 1 ? 1 - Math.pow(f, 1.5) : 1;
-      g.linearRampToValueAtTime(0.8 * swell * reversal * fadeOut, tl.time(beat));
+      const fadeOut = bar === totalBars - 1 ? 1 - Math.pow(f, 1.5) : 1;
+      g.linearRampToValueAtTime(0.75 * swell * reversal * fadeOut, tl.time(beat));
     }
   }
 
-  function setMelodyGain() {
-    if (hands) hands.right.gain.setTargetAtTime(withMelody ? 0.9 : 0, ctx.currentTime, 0.02);
+  function setVoiceGains() {
+    if (!voiceGain) return;
+    for (const v in voiceGain) voiceGain[v].gain.setTargetAtTime(audible[v] ? LEVEL[v] : 0, ctx.currentTime, 0.02);
   }
 
   async function play(fromBeat = 0) {
@@ -411,7 +450,7 @@
     playing = true;
     setPlayButtons(true);
     $('status').textContent = 'Loading…';
-    // The melody is always scheduled (its hand is muted without "Mit Melodie"), so the switch works while playing
+    // Every voice is scheduled (muted ones at gain 0), so the checkboxes work while playing
     const todo = events.filter(e => e.beat >= fromBeat && e.midis.length);
     let sounds;
     try {
@@ -430,22 +469,21 @@
 
     const bellows = ctx.createGain();
     bellows.connect(out);
-    hands = { right: ctx.createGain(), left: ctx.createGain() };
-    hands.right.gain.value = withMelody ? 0.9 : 0;
-    hands.left.gain.value = 0.8;
-    hands.right.connect(bellows);
-    hands.left.connect(bellows);
+    voiceGain = {};
+    for (const v of ['S', 'A', 'T', 'B']) {
+      voiceGain[v] = ctx.createGain();
+      voiceGain[v].gain.value = audible[v] ? LEVEL[v] : 0;
+      voiceGain[v].connect(bellows);
+    }
     timeline = makeTimeline(fromBeat, ctx.currentTime + 0.12);
     scheduleBellows(bellows, fromBeat, timeline);
 
     todo.forEach((e, k) => {
       const t = timeline.time(e.beat), full = timeline.time(e.beat + e.beats) - t;
-      // All voices legato, with a breath between notes; the tenor a little under the bass
-      const end = t + full - Math.min(0.05, full * 0.1);
-      const level = e.voice === 'tenor' ? 0.8 : 1;
-      sounds[k].forEach(s => voices.push(playNote(ctx, hands[e.hand], s.buffer, s.rate, t, end, level)));
+      const end = t + full - Math.min(0.05, full * 0.1);   // legato, with a breath between notes
+      sounds[k].forEach(s => sources.push(playNote(ctx, voiceGain[e.voice], s.buffer, s.rate, t, end, 1)));
     });
-    voices.push({ src: { stop() {} }, gain: bellows });
+    sources.push({ src: { stop() {} }, gain: bellows });
 
     const tick = () => {
       if (!playing) return;
@@ -461,13 +499,13 @@
   function stop() {
     playing = false;
     cancelAnimationFrame(rafId);
-    for (const { src, gain } of voices) {
+    for (const { src, gain } of sources) {
       gain.gain.cancelScheduledValues(ctx.currentTime);
       gain.gain.setTargetAtTime(0, ctx.currentTime, 0.03);
       try { src.stop(ctx.currentTime + 0.15); } catch { /* not started */ }
     }
-    voices = [];
-    hands = null;
+    sources = [];
+    voiceGain = null;
     setPlayButtons(false);
   }
 
@@ -481,30 +519,43 @@
   });
 
   const showTempo = () => { $('tempoValue').textContent = `${tempoInput.value} bpm`; };
-  try { const t = Number(localStorage.getItem('noteListener.backingTempo')); if (t) tempoInput.value = t; } catch { }
+  tempoInput.value = load('tempo', 66);
   showTempo();
   tempoInput.addEventListener('input', showTempo);
   tempoInput.addEventListener('change', () => {
-    try { localStorage.setItem('noteListener.backingTempo', tempoInput.value); } catch { }
+    store('tempo', Number(tempoInput.value));
     if (playing) play(Math.floor(nowBeat));
   });
 
-  function setMelody(on) {
-    withMelody = on;
-    $('melOn').setAttribute('aria-pressed', String(on));
-    $('melOff').setAttribute('aria-pressed', String(!on));
-    try { localStorage.setItem('noteListener.backingMelody', on ? 'on' : 'off'); } catch { }
-    setMelodyGain();
+  // Fassung and alto hand rebuild the score; voice checkboxes only change what sounds
+  function setChoice(kind, value) {
+    if (playing) stop();
+    if (kind === 'variant') variant = value; else altHand = value;
+    store(kind, value);
+    $('varPlain').setAttribute('aria-pressed', String(variant === 'plain'));
+    $('varMoving').setAttribute('aria-pressed', String(variant === 'moving'));
+    $('altRight').setAttribute('aria-pressed', String(altHand === 'right'));
+    $('altLeft').setAttribute('aria-pressed', String(altHand === 'left'));
+    buildEvents();
+    nowKey = '';
+    drawScore();
   }
-  $('melOn').onclick = () => setMelody(true);
-  $('melOff').onclick = () => setMelody(false);
-  setMelody(withMelody);
+  $('varPlain').onclick = () => setChoice('variant', 'plain');
+  $('varMoving').onclick = () => setChoice('variant', 'moving');
+  $('altRight').onclick = () => setChoice('altHand', 'right');
+  $('altLeft').onclick = () => setChoice('altHand', 'left');
+  for (const box of document.querySelectorAll('[data-voice]')) {
+    const v = box.dataset.voice;
+    box.checked = !!audible[v];
+    box.onchange = () => { audible[v] = box.checked; store('voices', audible); setVoiceGains(); markMuted(); };
+  }
 
-  drawScore();
+  setChoice('variant', variant);
   addEventListener('resize', () => {
     const perLine = score.clientWidth < 560 ? 2 : 3;
     if (perLine !== (score.viewBox.baseVal.width === 420 ? 2 : 3)) drawScore();
   });
+  window.__choral = { VARIANTS, SOPRANO };   // for tests
 })();
 </script>
 </body>

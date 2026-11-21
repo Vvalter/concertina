@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#2f6fdb"/>
+  <!-- concertina end: hexagon with a fretwork ring and buttons, inside the central 80% (maskable safe zone) -->
+  <polygon points="421,256 338.5,113.1 173.5,113.1 91,256 173.5,398.9 338.5,398.9" fill="#fff"/>
+  <polygon points="398,256 327,133 185,133 114,256 185,379 327,379" fill="none" stroke="#2f6fdb" stroke-width="8" stroke-linejoin="round"/>
+  <g fill="#2f6fdb">
+    <circle cx="196" cy="204" r="19"/><circle cx="256" cy="204" r="19"/><circle cx="316" cy="204" r="19"/>
+    <circle cx="166" cy="256" r="19"/><circle cx="226" cy="256" r="19"/><circle cx="286" cy="256" r="19"/><circle cx="346" cy="256" r="19"/>
+    <circle cx="196" cy="308" r="19"/><circle cx="256" cy="308" r="19"/><circle cx="316" cy="308" r="19"/>
+  </g>
+</svg>

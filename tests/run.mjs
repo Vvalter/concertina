@@ -121,7 +121,7 @@ cases.push({ group: 'mic', name: 'paused and lost microphone', settings: SETTING
 cases.push({ group: 'song', name: 'Hänschen klein', settings: SETTINGS, song: true });
 cases.push({ group: 'song', name: 'Hänschen klein – Duett', settings: SETTINGS, duet: true });
 cases.push({ group: 'song', name: 'Hänschen klein – Duett, einfach', settings: SETTINGS, duet: true, simple: true });
-cases.push({ group: 'song', name: 'Guter Mond – Begleitung in Cis-Dur', settings: SETTINGS, backing: true });
+cases.push({ group: 'song', name: 'Guter Mond – Choral', settings: SETTINGS, backing: true });
 
 const selected = cases.filter(c => !filters.length || filters.some(w => c.group.includes(w) || c.name.includes(w)));
 
@@ -226,7 +226,7 @@ async function runCase(w, c) {
   if (c.song) await w.ev(`localStorage.setItem('noteListener.songTempo', '160')`);
   if (c.duet) await w.ev(`localStorage.setItem('noteListener.duetTempo', '160')`);
   if (c.duet) await w.ev(`localStorage.setItem('noteListener.duetVersion', '${c.simple ? 'simple' : 'full'}')`);
-  if (c.backing) await w.ev(`localStorage.setItem('noteListener.backingTempo', '120'); localStorage.setItem('noteListener.backingMelody', 'off')`);
+  if (c.backing) await w.ev(`localStorage.setItem('noteListener.choral.tempo', '112'); ['variant', 'altHand', 'voices'].forEach(k => localStorage.removeItem('noteListener.choral.' + k))`);
   await w.open(c.song ? 'song.html' : c.duet ? 'duet.html' : c.backing ? 'backing.html' : 'index.html');
   w.errors.length = 0;
   if (c.play) return runPlayCase(w);
@@ -402,7 +402,8 @@ async function runSongCase(w) {
     return seen;
   })()`);
   const problems = [];
-  const order = seen.map(s => s.k).filter((k, i, a) => k >= 0 && k !== a[i - 1]);
+  // Before the recordings have loaded, the old highlight (note 0) can still show: only count notes from the start point
+  const order = seen.map(s => s.k).filter(k => k >= SONG_FROM).filter((k, i, a) => k !== a[i - 1]);
   const want = Array.from({ length: order.length }, (_, i) => SONG_FROM + i);
   if (order.length < 8 || order.join() !== want.join()) problems.push(`highlight order ${order.join(' ')}`);
   // The sounding pitch must match the highlighted note (skipping each note's first frames)
@@ -495,35 +496,37 @@ async function runDuetCase(w) {
   return problems.join('; ') || null;
 }
 
-// Backing page (Guter Mond in C major, chorale style): chord letters are plain C-major harmonies; from
-// "dir nicht folgen kann" the left hand lights its two voices (bass and tenor), the right hand the melody,
-// and without "Mit Melodie" only the left hand sounds (nothing heard from C5 up)
+// Chorale page (Guter Mond): default C major, plain version, the three accompanying voices in the left
+// hand. Chord symbols are C-major harmonies, no key signature; from "dir nicht folgen kann" the right hand
+// lights only the melody, the left hand alto, tenor and bass, and something sounds. Then the version with
+// passing notes and the alto in the right hand (at the end alto and melody share the C4 button).
 async function runBackingCase(w) {
   const problems = [];
+  const sharpCount = () => w.ev(`[...document.querySelectorAll('.score > text.glyph')].filter(t => t.textContent === '♯').length`);
   const letters = (await w.ev(`[...document.querySelectorAll('.score .chord-sym')].map(t => t.textContent).join(' ')`)).split(' ');
-  if (letters.some(l => !/^(C|Dm|Dm7|F|G|G7|Am)(\/[A-G])?$/.test(l)) || letters.length < 40) problems.push(`chord letters: ${letters.join(' ')}`);
-  await w.ev(`[...document.querySelectorAll('.score .ev')].find(g => g.textContent === 'dir')
-    .dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
-  const seen = await w.ev(`(async () => {
-    const seen = [], buf = new Float32Array(2048);
-    const pitch = ${PITCH_JS};
+  if (letters.some(l => !/^(C|Dm7?|F|G7?|Am)(\/[A-G])?$/.test(l)) || letters.length < 40) problems.push(`chord letters: ${letters.join(' ')}`);
+  if (await sharpCount()) problems.push(`C major shows ${await sharpCount()} sharps`);
+  const run = async ms => w.ev(`(async () => {
+    [...document.querySelectorAll('.score .ev')].find(g => g.textContent === 'dir').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const seen = new Set(), buf = new Float32Array(2048); let loud = 0;
     const lit = () => [...document.querySelectorAll('.maccann .btn')].map((g, i) => g.classList.contains('on') ? (i < 25 ? 'L' : 'R') + g.querySelector('text').textContent : '').filter(Boolean).sort().join(' ');
     const t0 = performance.now();
-    while (performance.now() - t0 < 6500) {
+    while (performance.now() - t0 < ${ms}) {
       await new Promise(r => setTimeout(r, 40));
-      if (!window.__out) continue;
-      window.__out.getFloatTimeDomainData(buf);
-      seen.push({ lit: lit(), ...pitch(buf, window.__outCtx.sampleRate), playing: document.getElementById('play').classList.contains('listening') });
+      seen.add(lit());
+      if (window.__out) { window.__out.getFloatTimeDomainData(buf); let e = 0; for (const v of buf) e += v * v; loud = Math.max(loud, Math.sqrt(e / buf.length)); }
     }
-    return seen;
+    return { lit: [...seen], loud, playing: document.getElementById('play').classList.contains('listening'), status: document.getElementById('status').textContent };
   })()`);
-  const lit = new Set(seen.map(s => s.lit));
-  for (const want of ['LC3 LC4 RE5', 'LB3 LF4 RD5', 'LC3 LE4 RC5', 'LC3 LE4'])
-    if (![...lit].includes(want)) problems.push(`never lit: ${want} (saw ${[...lit].join(' | ')})`);
-  const heard = seen.filter(s => s.clarity > 0.9 && s.rms > 0.01).map(s => 69 + 12 * Math.log2(s.freq / 440));
-  if (heard.length < 5) problems.push(`hardly anything heard (${heard.length} frames)`);
-  if (heard.some(m => m > 72.5)) problems.push(`melody sounds although it is off: ${Math.max(...heard).toFixed(1)}`);
-  if (seen.at(-1).playing) problems.push('still playing after the end');
+  let r = await run(7000);
+  for (const want of ['LC3 LC4 LG3 RE4', 'LC3 LC4 LE3 RC4'])
+    if (!r.lit.includes(want)) problems.push(`C plain never lit: ${want} (saw ${r.lit.join(' | ')}; ${r.status})`);
+  if (r.lit.some(l => l.split(' ').filter(x => x[0] === 'R').length > 1)) problems.push('right hand plays more than the melody');
+  if (!(r.loud > 0.01)) problems.push(`hardly anything sounds (${r.loud})`);
+  if (r.playing) problems.push('still playing after the end');
+  await w.ev(`document.getElementById('varMoving').click(); document.getElementById('altRight').click(); true`);
+  r = await run(7000);
+  if (!r.lit.includes('LC3 LE3 RC4')) problems.push(`moving, alto right never lit: LC3 LE3 RC4 (saw ${r.lit.join(' | ')}; ${r.status})`);
   if (w.errors.length) problems.push(`page error: ${w.errors[0]}`);
   return problems.join('; ') || null;
 }

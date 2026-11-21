@@ -4,10 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Note Listener</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2f6fdb">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V16">
+<link rel="stylesheet" href="concertina.css?v=V17">
 <style>
   a.nav { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
   .update {
@@ -123,8 +127,8 @@
   </div>
   <header>
     <div>
-      <h1>Note Listener <span class="version" id="version">V16</span></h1>
-      <div class="links"><a class="nav" href="song.html">♪ Hänschen klein</a> · <a class="nav" href="duet.html">♫ Hänschen klein – Duett</a> · <a class="nav" href="backing.html">☾ Guter Mond – Begleitung</a></div>
+      <h1>Note Listener <span class="version" id="version">V17</span></h1>
+      <div class="links"><a class="nav" href="song.html">♪ Hänschen klein</a> · <a class="nav" href="duet.html">♫ Hänschen klein – Duett</a> · <a class="nav" href="backing.html">☾ Guter Mond – Choral</a></div>
     </div>
     <div class="controls">
       <!-- On phones the settings fold away behind ⚙; elsewhere the wrapper doesn't affect the layout -->
@@ -195,7 +199,8 @@
   <div class="history" id="history"></div>
 </main>
 
-<script src="concertina.js?v=V16"></script>
+<script src="concertina.js?v=V17"></script>
+<script src="pwa.js?v=V17"></script>
 <script>
 (() => {
   const { ACC, spell, label, buildMaccann, SAMPLE_FILES, sampleFor, loopCache, playNote } = Concertina;
