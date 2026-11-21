@@ -495,13 +495,13 @@ async function runDuetCase(w) {
   return problems.join('; ') || null;
 }
 
-// Backing page (Guter Mond in C♯): chord letters C♯ G♯7 F♯ only; from "dir nicht folgen kann" the
-// left hand lights C♯/G♯7 grips, the right hand the melody, and without "Mit Melodie" only the left
-// hand sounds (the lowest note heard stays below the melody's C♯5)
+// Backing page (Guter Mond in C major, chorale style): chord letters are plain C-major harmonies; from
+// "dir nicht folgen kann" the left hand lights its two voices (bass and tenor), the right hand the melody,
+// and without "Mit Melodie" only the left hand sounds (nothing heard from C5 up)
 async function runBackingCase(w) {
   const problems = [];
   const letters = (await w.ev(`[...document.querySelectorAll('.score .chord-sym')].map(t => t.textContent).join(' ')`)).split(' ');
-  if (letters.some(l => !['C♯', 'G♯7', 'F♯'].includes(l)) || letters.length < 15) problems.push(`chord letters: ${letters.join(' ')}`);
+  if (letters.some(l => !/^(C|Dm|Dm7|F|G|G7|Am)(\/[A-G])?$/.test(l)) || letters.length < 40) problems.push(`chord letters: ${letters.join(' ')}`);
   await w.ev(`[...document.querySelectorAll('.score .ev')].find(g => g.textContent === 'dir')
     .dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
   const seen = await w.ev(`(async () => {
@@ -518,7 +518,7 @@ async function runBackingCase(w) {
     return seen;
   })()`);
   const lit = new Set(seen.map(s => s.lit));
-  for (const want of ['LC♯3 RF5', 'LC4 LF♯3 RD♯5', 'LC♯3 LC♯4 LG♯3'])
+  for (const want of ['LC3 LC4 RE5', 'LB3 LF4 RD5', 'LC3 LE4 RC5', 'LC3 LE4'])
     if (![...lit].includes(want)) problems.push(`never lit: ${want} (saw ${[...lit].join(' | ')})`);
   const heard = seen.filter(s => s.clarity > 0.9 && s.rms > 0.01).map(s => 69 + 12 * Math.log2(s.freq / 440));
   if (heard.length < 5) problems.push(`hardly anything heard (${heard.length} frames)`);
