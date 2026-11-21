@@ -75,3 +75,19 @@ svg.maccann.stale { opacity: 0.45; }
 .maccann .btn.good circle { fill: var(--good); stroke: var(--good); }
 .maccann .btn.bad circle { fill: var(--bad); stroke: var(--bad); }
 .maccann .btn.good text, .maccann .btn.bad text { fill: #fff; }
+
+/* Printing (the Drucken button, Concertina.printScore): only the title and the score, one system per block */
+.print-btn {
+  border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink);
+  padding: 4px 12px; font: inherit; cursor: pointer;
+}
+.print-sheet { display: none; }
+@media print {
+  :root { --bg: #fff; --panel: #fff; --ink: #000; --muted: #333; --line: #999; --accent: #000; }
+  @page { margin: 12mm; }
+  body { padding: 0; background: #fff; display: block; }
+  body.printing main, body.printing .update { display: none; }
+  body.printing .print-sheet { display: block; }
+  .print-sheet h1 { font-size: 16pt; text-align: center; margin: 0 0 10pt; }
+  .print-sheet svg { display: block; width: 100%; height: auto; break-inside: avoid; page-break-inside: avoid; }
+}

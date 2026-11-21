@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V17">
+<link rel="stylesheet" href="concertina.css?v=V18">
 <style>
   a.back { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
   .intro { color: var(--muted); font-size: 0.9rem; margin: 0; line-height: 1.45; }
@@ -77,6 +77,7 @@
       <label>Tempo <input id="tempo" type="range" min="60" max="160" step="4" value="112">
         <span class="tempo-value" id="tempoValue">112 bpm</span></label>
       <button id="play" class="start" data-play>▶ Play</button>
+      <button class="print-btn" data-print="219" title="Noten drucken oder als PDF speichern">🖨 Drucken</button>
     </div>
   </header>
 
@@ -106,8 +107,8 @@
   <div class="status" id="status"></div>
 </main>
 
-<script src="concertina.js?v=V17"></script>
-<script src="pwa.js?v=V17"></script>
+<script src="concertina.js?v=V18"></script>
+<script src="pwa.js?v=V18"></script>
 <script>
 (() => {
   const { SVG_NS, ACC, spell, label, toMidi, buildMaccann, sampleFor, loopCache, playNote } = Concertina;

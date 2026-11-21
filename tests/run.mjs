@@ -122,6 +122,7 @@ cases.push({ group: 'song', name: 'Hänschen klein', settings: SETTINGS, song: t
 cases.push({ group: 'song', name: 'Hänschen klein – Duett', settings: SETTINGS, duet: true });
 cases.push({ group: 'song', name: 'Hänschen klein – Duett, einfach', settings: SETTINGS, duet: true, simple: true });
 cases.push({ group: 'song', name: 'Guter Mond – Choral', settings: SETTINGS, backing: true });
+cases.push({ group: 'song', name: 'Drucken', settings: SETTINGS, backing: true, print: true });
 
 const selected = cases.filter(c => !filters.length || filters.some(w => c.group.includes(w) || c.name.includes(w)));
 
@@ -234,7 +235,7 @@ async function runCase(w, c) {
   if (c.hear) return runHearCase(w);
   if (c.song) return runSongCase(w);
   if (c.duet) return c.simple ? runDuetSimpleCase(w) : runDuetCase(w);
-  if (c.backing) return runBackingCase(w);
+  if (c.backing) return c.print ? runPrintCase(w) : runBackingCase(w);
   await w.ev(`document.getElementById('start').click()`);
   await sleep(150);
   await w.ev(`window.__play(${JSON.stringify(c.files)})`);
@@ -527,6 +528,27 @@ async function runBackingCase(w) {
   await w.ev(`document.getElementById('varMoving').click(); document.getElementById('altRight').click(); true`);
   r = await run(7000);
   if (!r.lit.includes('LC3 LE3 RC4')) problems.push(`moving, alto right never lit: LC3 LE3 RC4 (saw ${r.lit.join(' | ')}; ${r.status})`);
+  if (w.errors.length) problems.push(`page error: ${w.errors[0]}`);
+  return problems.join('; ') || null;
+}
+
+// Printing (on the chorale page, on a phone-sized window): the print sheet has the title and one SVG per
+// system in the wide layout (3 bars per line: 6 systems, 800 wide), the on-screen score is back to the
+// phone layout, and window.print was called
+async function runPrintCase(w) {
+  const r = await w.ev(`(async () => {
+    let printed = 0; window.print = () => { printed++; };
+    document.getElementById('score').style.width = '400px'; dispatchEvent(new Event('resize'));
+    document.querySelector('[data-print]').click();
+    const svgs = [...document.querySelectorAll('.print-sheet svg')];
+    return { printed, n: svgs.length, widths: [...new Set(svgs.map(s => s.viewBox.baseVal.width))].join(),
+      title: document.querySelector('.print-sheet h1')?.textContent, screen: document.getElementById('score').viewBox.baseVal.width };
+  })()`);
+  const problems = [];
+  if (r.printed !== 1) problems.push(`window.print called ${r.printed}×`);
+  if (r.n !== 6 || r.widths !== '800') problems.push(`print sheet: ${r.n} systems, widths ${r.widths}`);
+  if (!/Guter Mond/.test(r.title || '')) problems.push(`title: ${r.title}`);
+  if (r.screen !== 420) problems.push(`screen score not back to phone layout (width ${r.screen})`);
   if (w.errors.length) problems.push(`page error: ${w.errors[0]}`);
   return problems.join('; ') || null;
 }

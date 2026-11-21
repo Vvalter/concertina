@@ -269,7 +269,42 @@
     return { src, gain };
   }
 
+  // ---------- printing ----------
+  // Prints the score: redraws it in the wide (desktop) layout, copies each system (line of music, sysH
+  // high in the SVG's coordinates) into its own SVG so no system is cut by a page break, and prints only
+  // those under the page title. Wired to every [data-print="<system height>"] button.
+  function printScore(svg, sysH) {
+    for (const old of document.querySelectorAll('.print-sheet')) old.remove();
+    const width = svg.style.width;
+    svg.style.width = '900px';            // the pages redraw on resize: wide layout
+    dispatchEvent(new Event('resize'));
+    const vb = svg.viewBox.baseVal, lines = Math.max(1, Math.round((vb.height - 10) / sysH));
+    const sheet = document.createElement('div');
+    sheet.className = 'print-sheet';
+    const h = document.createElement('h1');
+    h.textContent = document.querySelector('main h1')?.textContent || document.title;
+    sheet.append(h);
+    for (let l = 0; l < lines; l++) {
+      const c = svg.cloneNode(true);
+      c.removeAttribute('id');
+      c.style.width = '';
+      c.setAttribute('viewBox', `0 ${l * sysH} ${vb.width} ${sysH + (l === lines - 1 ? 10 : 0)}`);
+      for (const e of c.querySelectorAll('.now')) e.classList.remove('now');
+      sheet.append(c);
+    }
+    svg.style.width = width;
+    dispatchEvent(new Event('resize'));
+    document.body.append(sheet);
+    document.body.classList.add('printing');
+    const done = () => { document.body.classList.remove('printing'); removeEventListener('afterprint', done); };
+    addEventListener('afterprint', done);
+    window.print();
+  }
+  for (const b of document.querySelectorAll('[data-print]')) {
+    b.addEventListener('click', () => printScore(document.getElementById('score'), Number(b.dataset.print)));
+  }
+
   window.Concertina = {
-    SVG_NS, LETTERS, ACC, spell, label, MACCANN, toMidi, buildMaccann, SAMPLE_FILES, sampleFor, makeLoop, loadLoop, loopCache, playNote,
+    SVG_NS, LETTERS, ACC, spell, label, MACCANN, toMidi, buildMaccann, SAMPLE_FILES, sampleFor, makeLoop, loadLoop, loopCache, playNote, printScore,
   };
 })();
