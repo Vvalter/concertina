@@ -121,6 +121,7 @@ cases.push({ group: 'mic', name: 'paused and lost microphone', settings: SETTING
 cases.push({ group: 'song', name: 'Hänschen klein', settings: SETTINGS, song: true });
 cases.push({ group: 'song', name: 'Hänschen klein – Duett', settings: SETTINGS, duet: true });
 cases.push({ group: 'song', name: 'Hänschen klein – Duett, einfach', settings: SETTINGS, duet: true, simple: true });
+cases.push({ group: 'song', name: 'Guter Mond – Begleitung in Cis-Dur', settings: SETTINGS, backing: true });
 
 const selected = cases.filter(c => !filters.length || filters.some(w => c.group.includes(w) || c.name.includes(w)));
 
@@ -225,13 +226,15 @@ async function runCase(w, c) {
   if (c.song) await w.ev(`localStorage.setItem('noteListener.songTempo', '160')`);
   if (c.duet) await w.ev(`localStorage.setItem('noteListener.duetTempo', '160')`);
   if (c.duet) await w.ev(`localStorage.setItem('noteListener.duetVersion', '${c.simple ? 'simple' : 'full'}')`);
-  await w.open(c.song ? 'song.html' : c.duet ? 'duet.html' : 'index.html');
+  if (c.backing) await w.ev(`localStorage.setItem('noteListener.backingTempo', '120'); localStorage.setItem('noteListener.backingMelody', 'off')`);
+  await w.open(c.song ? 'song.html' : c.duet ? 'duet.html' : c.backing ? 'backing.html' : 'index.html');
   w.errors.length = 0;
   if (c.play) return runPlayCase(w);
   if (c.mic) return runMicCase(w);
   if (c.hear) return runHearCase(w);
   if (c.song) return runSongCase(w);
   if (c.duet) return c.simple ? runDuetSimpleCase(w) : runDuetCase(w);
+  if (c.backing) return runBackingCase(w);
   await w.ev(`document.getElementById('start').click()`);
   await sleep(150);
   await w.ev(`window.__play(${JSON.stringify(c.files)})`);
@@ -487,6 +490,39 @@ async function runDuetCase(w) {
     if (hz < 4 || hz > 11 || depth < 0.4) problems.push(`no bellows shake: ${hz.toFixed(1)} Hz, depth ${depth.toFixed(2)}`);
   }
   if (!seen.some(s => s.section === 'Balgtremolo')) problems.push('section label Balgtremolo never shown');
+  if (seen.at(-1).playing) problems.push('still playing after the end');
+  if (w.errors.length) problems.push(`page error: ${w.errors[0]}`);
+  return problems.join('; ') || null;
+}
+
+// Backing page (Guter Mond in C♯): chord letters C♯ G♯7 F♯ only; from "dir nicht folgen kann" the
+// left hand lights C♯/G♯7 grips, the right hand the melody, and without "Mit Melodie" only the left
+// hand sounds (the lowest note heard stays below the melody's C♯5)
+async function runBackingCase(w) {
+  const problems = [];
+  const letters = (await w.ev(`[...document.querySelectorAll('.score .chord-sym')].map(t => t.textContent).join(' ')`)).split(' ');
+  if (letters.some(l => !['C♯', 'G♯7', 'F♯'].includes(l)) || letters.length < 15) problems.push(`chord letters: ${letters.join(' ')}`);
+  await w.ev(`[...document.querySelectorAll('.score .ev')].find(g => g.textContent === 'dir')
+    .dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
+  const seen = await w.ev(`(async () => {
+    const seen = [], buf = new Float32Array(2048);
+    const pitch = ${PITCH_JS};
+    const lit = () => [...document.querySelectorAll('.maccann .btn')].map((g, i) => g.classList.contains('on') ? (i < 25 ? 'L' : 'R') + g.querySelector('text').textContent : '').filter(Boolean).sort().join(' ');
+    const t0 = performance.now();
+    while (performance.now() - t0 < 6500) {
+      await new Promise(r => setTimeout(r, 40));
+      if (!window.__out) continue;
+      window.__out.getFloatTimeDomainData(buf);
+      seen.push({ lit: lit(), ...pitch(buf, window.__outCtx.sampleRate), playing: document.getElementById('play').classList.contains('listening') });
+    }
+    return seen;
+  })()`);
+  const lit = new Set(seen.map(s => s.lit));
+  for (const want of ['LC♯3 RF5', 'LC4 LF♯3 RD♯5', 'LC♯3 LC♯4 LG♯3'])
+    if (![...lit].includes(want)) problems.push(`never lit: ${want} (saw ${[...lit].join(' | ')})`);
+  const heard = seen.filter(s => s.clarity > 0.9 && s.rms > 0.01).map(s => 69 + 12 * Math.log2(s.freq / 440));
+  if (heard.length < 5) problems.push(`hardly anything heard (${heard.length} frames)`);
+  if (heard.some(m => m > 72.5)) problems.push(`melody sounds although it is off: ${Math.max(...heard).toFixed(1)}`);
   if (seen.at(-1).playing) problems.push('still playing after the end');
   if (w.errors.length) problems.push(`page error: ${w.errors[0]}`);
   return problems.join('; ') || null;
