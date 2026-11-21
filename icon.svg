@@ -1,11 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <rect width="512" height="512" fill="#2f6fdb"/>
-  <!-- concertina end: hexagon with a fretwork ring and buttons, inside the central 80% (maskable safe zone) -->
-  <polygon points="421,256 338.5,113.1 173.5,113.1 91,256 173.5,398.9 338.5,398.9" fill="#fff"/>
-  <polygon points="398,256 327,133 185,133 114,256 185,379 327,379" fill="none" stroke="#2f6fdb" stroke-width="8" stroke-linejoin="round"/>
-  <g fill="#2f6fdb">
-    <circle cx="196" cy="204" r="19"/><circle cx="256" cy="204" r="19"/><circle cx="316" cy="204" r="19"/>
-    <circle cx="166" cy="256" r="19"/><circle cx="226" cy="256" r="19"/><circle cx="286" cy="256" r="19"/><circle cx="346" cy="256" r="19"/>
-    <circle cx="196" cy="308" r="19"/><circle cx="256" cy="308" r="19"/><circle cx="316" cy="308" r="19"/>
+  <!-- 12-sided concertina end (like the owner's Lachenal Edeophone): end plate, fretwork ring, buttons in
+       staggered Maccann columns, hand strap. All inside the central 80% (maskable safe zone). -->
+  <polygon points="445.3,306.7 394.6,394.6 306.7,445.3 205.3,445.3 117.4,394.6 66.7,306.7 66.7,205.3 117.4,117.4 205.3,66.7 306.7,66.7 394.6,117.4 445.3,205.3" fill="#fff"/>
+  <polygon points="427.9,302.1 381.9,381.9 302.1,427.9 209.9,427.9 130.1,381.9 84.1,302.1 84.1,209.9 130.1,130.1 209.9,84.1 302.1,84.1 381.9,130.1 427.9,209.9" fill="none" stroke="#2f6fdb" stroke-width="6" stroke-linejoin="round"/>
+  <polygon points="393.2,292.8 356.4,356.4 292.8,393.2 219.2,393.2 155.6,356.4 118.8,292.8 118.8,219.2 155.6,155.6 219.2,118.8 292.8,118.8 356.4,155.6 393.2,219.2" fill="none" stroke="#2f6fdb" stroke-width="6" stroke-linejoin="round"/>
+  <g stroke="#2f6fdb" stroke-width="6" stroke-linecap="round">
+    <line x1="404.9" y1="237.7" x2="424.7" y2="235.3"/><line x1="404.9" y1="274.3" x2="424.7" y2="276.7"/><line x1="394.1" y1="314.6" x2="412.5" y2="322.4"/><line x1="375.8" y1="346.3" x2="391.8" y2="358.3"/><line x1="346.3" y1="375.8" x2="358.3" y2="391.8"/><line x1="314.6" y1="394.1" x2="322.4" y2="412.5"/><line x1="274.3" y1="404.9" x2="276.7" y2="424.7"/><line x1="237.7" y1="404.9" x2="235.3" y2="424.7"/><line x1="197.4" y1="394.1" x2="189.6" y2="412.5"/><line x1="165.7" y1="375.8" x2="153.7" y2="391.8"/><line x1="136.2" y1="346.3" x2="120.2" y2="358.3"/><line x1="117.9" y1="314.6" x2="99.5" y2="322.4"/><line x1="107.1" y1="274.3" x2="87.3" y2="276.7"/><line x1="107.1" y1="237.7" x2="87.3" y2="235.3"/><line x1="117.9" y1="197.4" x2="99.5" y2="189.6"/><line x1="136.2" y1="165.7" x2="120.2" y2="153.7"/><line x1="165.7" y1="136.2" x2="153.7" y2="120.2"/><line x1="197.4" y1="117.9" x2="189.6" y2="99.5"/><line x1="237.7" y1="107.1" x2="235.3" y2="87.3"/><line x1="274.3" y1="107.1" x2="276.7" y2="87.3"/><line x1="314.6" y1="117.9" x2="322.4" y2="99.5"/><line x1="346.3" y1="136.2" x2="358.3" y2="120.2"/><line x1="375.8" y1="165.7" x2="391.8" y2="153.7"/><line x1="394.1" y1="197.4" x2="412.5" y2="189.6"/>
   </g>
+  <g fill="#2f6fdb">
+    <circle cx="180" cy="168" r="13"/><circle cx="180" cy="206" r="13"/><circle cx="180" cy="244" r="13"/><circle cx="180" cy="282" r="13"/><circle cx="218" cy="187" r="13"/><circle cx="218" cy="225" r="13"/><circle cx="218" cy="263" r="13"/><circle cx="256" cy="168" r="13"/><circle cx="256" cy="206" r="13"/><circle cx="256" cy="244" r="13"/><circle cx="256" cy="282" r="13"/><circle cx="294" cy="187" r="13"/><circle cx="294" cy="225" r="13"/><circle cx="294" cy="263" r="13"/><circle cx="332" cy="168" r="13"/><circle cx="332" cy="206" r="13"/><circle cx="332" cy="244" r="13"/><circle cx="332" cy="282" r="13"/>
+  </g>
+  <rect x="166" y="320" width="180" height="22" rx="11" fill="#2f6fdb"/>
 </svg>

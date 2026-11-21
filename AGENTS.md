@@ -23,7 +23,7 @@ No build step, no dependencies, no npm packages. The only external resource is t
 - `samples/`: one recording per button (see Testing for the names). Play mode and the song page need them deployed too.
 - `manifest.webmanifest`, `sw.js`, `pwa.js`, `icon.svg`, `icon-192.png`, `icon-512.png`: the installable app (PWA), see below.
 
-All pages load the shared files as `concertina.js?v=V18` / `concertina.css?v=V18` / `pwa.js?v=V18`. **Update that query together with the version label**, so GitHub Pages' cache can't pair a new page with old shared files. Bump `CACHE` in `sw.js` at the same time.
+All pages load the shared files as `concertina.js?v=V19` / `concertina.css?v=V19` / `pwa.js?v=V19`. **Update that query together with the version label**, so GitHub Pages' cache can't pair a new page with old shared files. Bump `CACHE` in `sw.js` at the same time.
 
 `index.html` script sections, in order (search for `// ----------`):
 
@@ -42,7 +42,7 @@ All pages load the shared files as `concertina.js?v=V18` / `concertina.css?v=V18
 | diagnostics | The "Diagnostics" checkbox in the settings (remembered): a panel under the status line with frames/s, sample rate, level and peak (clipped frames), MPM clarity, why the current frame shows nothing (too quiet / unclear / chord), the confirm candidate, and the track's real `echoCancellation`/`noiseSuppression`/`autoGainControl` settings. "Record 10 s" records the mic with `MediaRecorder`; then a Save link (blob download) and, if `navigator.canShare`, a Share button appear. The file type must be bare (`audio/webm` → .webm, preferred; `audio/mp4` → .m4a, for Safari): with `;codecs=…` phones refuse to share it, and Chrome refuses `audio/mp4` (NotAllowedError, not on its share list), so a recording from a phone can be replayed in the tests. |
 | loop | Per animation frame: gate on RMS. If chords are on (`useChords`, the "Notes + chords / Notes only" switch) and MPM clarity < `CHORD_CLARITY_MAX`, try chord detection first; otherwise fall back to a single note. A result must repeat for `NOTE_CONFIRM` / `CHORD_CONFIRM` frames before it is shown. |
 
-The version label (`#version`, currently `V18`) is in the `<h1>`. **Bump it with every change that gets pushed.** It shows the owner which version is loaded, and it drives the update check: on load, and when the tab becomes visible again (at most once a minute), the page re-fetches itself with `fetch(location.href, {cache: 'reload'})`. That bypasses GitHub Pages' 10-minute `max-age` and refreshes the browser cache. If the fetched `#version` differs, it shows a "new version available – Reload" bar. It is skipped on `file://`.
+The version label (`#version`, currently `V19`) is in the `<h1>`. **Bump it with every change that gets pushed.** It shows the owner which version is loaded, and it drives the update check: on load, and when the tab becomes visible again (at most once a minute), the page re-fetches itself with `fetch(location.href, {cache: 'reload'})`. That bypasses GitHub Pages' 10-minute `max-age` and refreshes the browser cache. If the fetched `#version` differs, it shows a "new version available – Reload" bar. It is skipped on `file://`.
 
 Test hooks at the bottom of the script: `window.__detectPitch`, `window.__show(sound)`, `window.__identifyChord` and `window.__mic()` (`{ctx, stream}`).
 
@@ -51,13 +51,13 @@ Test hooks at the bottom of the script: `window.__detectPitch`, `window.__show(s
 The pages can be installed on a phone ("Add to Home screen" / "Install app") and work offline. Every page has the manifest, theme-color, icon and apple-touch-icon tags in `<head>`, and loads `pwa.js` right after `concertina.js`. All paths are relative (the app lives at https://vvalter.github.io/concertina/, scope `./`).
 
 - `manifest.webmanifest`: name, `start_url` `./index.html`, standalone, colours, icons (192, 512, the 512 again as `maskable`, and the SVG).
-- `icon.svg`: a hexagonal concertina end with ten buttons, white on the accent blue `#2f6fdb`, kept inside the central 80 % so it also works as a maskable icon. `icon-192.png` / `icon-512.png` are screenshots of it from headless Chrome (an HTML wrapper with the SVG at 100 %, `--screenshot --window-size=N,N`). Re-render them if the SVG changes.
+- `icon.svg`: a 12-sided concertina end like the owner's Edeophone (end plate, fretwork ring, 18 buttons in staggered Maccann columns, hand strap), white on the accent blue `#2f6fdb`, kept inside the central 80 % so it also works as a maskable icon. `icon-192.png` / `icon-512.png` are screenshots of it from headless Chrome (an HTML wrapper with the SVG at 100 %, `--screenshot --window-size=N,N`). Re-render them if the SVG changes.
 - `pwa.js`: registers `sw.js` on http(s) only (not `file://`).
 - `sw.js`, caching:
   - The shell (index, song, duet and backing pages, `concertina.js/.css`, `pwa.js`, manifest, icons) is precached on install. Same-origin requests are **network first**, and the cache is only an offline fallback, so a pushed version is never stuck behind the cache. Normal requests are revalidated (`cache: 'no-cache'`); requests that already ask for `cache: 'reload'` (index.html's update check) keep that mode. Cache keys drop the query, so `?v=V17` matches the precached file (`ignoreSearch`), but the network always gets the exact URL. An offline navigation to `./` falls back to `index.html`.
   - `samples/*.m4a` and Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`) are **cache first**, stored when first used. A song works offline once it has been played online.
   - `skipWaiting` + `clients.claim`; on activate, every `concertina-*` cache except the current one is deleted.
-- **`CACHE` in `sw.js` (`concertina-V18`) must be bumped together with the version label and the `?v=` query.** Changing `sw.js` is what makes browsers install the new worker and drop the old cache.
+- **`CACHE` in `sw.js` (`concertina-V19`) must be bumped together with the version label and the `?v=` query.** Changing `sw.js` is what makes browsers install the new worker and drop the old cache.
 - New pages or shared files belong in `SHELL` in `sw.js` (and the pages need the head tags and `pwa.js`).
 - Tests: the pages register the worker under `tests/run.mjs` too. The song case "Hänschen klein" is timing-sensitive: note 0 stays highlighted while the recordings load, and the test records it if loading takes longer than one 40 ms poll. It flakes under load with or without the worker (seen 2026-11-21).
 
