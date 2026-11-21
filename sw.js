@@ -3,7 +3,7 @@
 // so a new version is never stuck behind the cache. Cache keys drop the query (?v=V17).
 // Recordings (samples/*.m4a) and Google Fonts: cache first, cached when first used.
 // Bump CACHE together with the version label (#version in index.html).
-const CACHE = 'concertina-V19';
+const CACHE = 'concertina-V20';
 const SHELL = ['index.html', 'song.html', 'duet.html', 'backing.html', 'concertina.js', 'concertina.css',
   'pwa.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 

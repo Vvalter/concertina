@@ -525,6 +525,10 @@ async function runBackingCase(w) {
   if (r.lit.some(l => l.split(' ').filter(x => x[0] === 'R').length > 1)) problems.push('right hand plays more than the melody');
   if (!(r.loud > 0.01)) problems.push(`hardly anything sounds (${r.loud})`);
   if (r.playing) problems.push('still playing after the end');
+  // Griffig: from "dir" the left hand holds the compact grip C3 E3 G3 under the melody's E4
+  await w.ev(`document.getElementById('varGrip').click(); true`);
+  r = await run(4000);
+  if (!r.lit.includes('LC3 LE3 LG3 RE4')) problems.push(`Griffig never lit: LC3 LE3 LG3 RE4 (saw ${r.lit.join(' | ')}; ${r.status})`);
   await w.ev(`document.getElementById('varMoving').click(); document.getElementById('altRight').click(); true`);
   r = await run(7000);
   if (!r.lit.includes('LC3 LE3 RC4')) problems.push(`moving, alto right never lit: LC3 LE3 RC4 (saw ${r.lit.join(' | ')}; ${r.status})`);
