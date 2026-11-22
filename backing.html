@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V21">
+<link rel="stylesheet" href="concertina.css?v=V22">
 <style>
   a.back { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
   .intro { color: var(--muted); font-size: 0.9rem; margin: 0; line-height: 1.45; }
@@ -55,6 +55,10 @@
   }
   .play-mini { display: none; margin-left: auto; padding: 6px 14px; align-self: center; }
   @media (max-width: 560px) { .play-mini { display: block; } }
+  .next-mini { margin-left: 6px; }
+  button.start.next-btn { background: var(--panel, #fff); color: var(--accent); border: 1px solid var(--accent); }
+  .seg { flex-wrap: wrap; }
+  .seg button:disabled { opacity: 0.45; cursor: default; }
   @media (min-width: 561px) {
     header { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 8px 0; margin-top: -8px; }
   }
@@ -73,14 +77,16 @@
         <button id="varMoving" aria-pressed="false" title="Gleiche Harmonien, Alt, Tenor und Bass mit Durchgangsachteln">Mit Durchgängen</button>
         <button id="varGrip" aria-pressed="false" title="Gleiche Harmonien, Griffe für die linke Hand optimiert">Griffig</button>
       </div>
-      <div class="seg" role="group" aria-label="Begleitung">
+      <div class="seg" role="group" aria-label="Linke Hand">
         <button id="leftOne" aria-pressed="true" title="Rechte Hand die Melodie, linke Hand nur den Bass">Links einstimmig</button>
+        <button id="leftTwo" aria-pressed="false" title="Links eine Oberstimme und der Bass, griffig gesetzt (in jeder Fassung gleich)">Links zweistimmig</button>
         <button id="altLeft" aria-pressed="false" title="Rechte Hand nur die Melodie, links die dreistimmige Begleitung">Links dreistimmig</button>
         <button id="altRight" aria-pressed="false" title="Der Alt geht in die rechte Hand, wo sie den Ton hat">Alt rechts</button>
       </div>
-      <label>Tempo <input id="tempo" type="range" min="1" max="112" step="1" value="66">
+      <label>Tempo <input id="tempo" type="range" min="0" max="112" step="1" value="66">
         <span class="tempo-value" id="tempoValue">66 bpm</span></label>
       <button id="play" class="start" data-play>▶ Play</button>
+      <button class="start next-btn" data-next title="Zur nächsten Note springen (Pfeil rechts). Bei 0 bpm klingt immer nur der Griff, bis du weiterdrückst.">Next »</button>
       <button class="print-btn" data-print="270" title="Noten drucken oder als PDF speichern">🖨 Drucken</button>
       <div class="voices" role="group" aria-label="Es klingt">Es klingt:
         <label><input type="checkbox" data-voice="S"> Sopran</label>
@@ -94,14 +100,17 @@
   <p class="intro">
     Vierstimmiger Choralsatz in C-Dur: die rechte Hand spielt nur die Melodie (beginnt mit g'), darunter eine
     dreistimmige Begleitung – Alt, Tenor und Bass – im Choralstil, alle Stimmen gehen zusammen.
-    <b>Links einstimmig</b> (Standard): die linke Hand spielt nur den Bass. <b>Links dreistimmig</b>: alle drei
+    <b>Links einstimmig</b> (Standard): die linke Hand spielt nur den Bass. <b>Links zweistimmig</b>: eine
+    Oberstimme und der Bass, griffig gesetzt (in jeder Fassung gleich). <b>Links dreistimmig</b>: alle drei
     Begleitstimmen in der linken Hand. <b>Alt rechts</b>: der Alt geht in die
     rechte Hand, wo sie den Ton hat. <b>Schlicht</b>: ein Akkord pro Schlag; <b>Mit Durchgängen</b>: dieselben
     Harmonien, die Begleitstimmen füllen mit Achteln; <b>Griffig</b>: dieselben Harmonien, die Dreiklänge der linken
     Hand so gewählt, dass sie auf dem Edeophone gut liegen – möglichst jeder Finger in seiner Reihe, kaum zwei Knöpfe
     mit Abstand in derselben Reihe, gehaltene Töne wo möglich. Unter „Es klingt“ wählst du, welche Stimmen die Seite
    spielt. Jede Notenzeile zeigt eine Hand; in der unteren haben Alt und Tenor den Hals nach oben, der Bass nach unten.
-    Ohne Vorspiel und Auftakt: es beginnt direkt auf „Mond“.
+    Kein Vorspiel: die Melodie beginnt mit dem Auftakt „Gu-ter“, die Begleitung setzt auf „Mond“ ein.
+    <b>Next »</b> springt zur nächsten Note; bei <b>0 bpm</b> spielt nichts von selbst, jeder Druck auf Next lässt den
+    nächsten Griff klingen, bis du weiterdrückst.
   </p>
 
   <section class="card">
@@ -114,6 +123,7 @@
       <div class="now-hand" id="nowLeft"><span>L</span>–</div>
       <div class="now-section" id="nowSection"></div>
       <button class="start play-mini" data-play>▶ Play</button>
+      <button class="start play-mini next-mini" data-next>»</button>
     </div>
     <p class="sub">Gefüllt: jetzt drücken · gestrichelt: als Nächstes. Auf eine Note tippen, um dort anzufangen.</p>
     <svg class="maccann" id="maccann" viewBox="0 0 1000 520" aria-label="Maccann duet keyboard"></svg>
@@ -122,8 +132,8 @@
   <div class="status" id="status"></div>
 </main>
 
-<script src="concertina.js?v=V21"></script>
-<script src="pwa.js?v=V21"></script>
+<script src="concertina.js?v=V22"></script>
+<script src="pwa.js?v=V22"></script>
 <script>
 (() => {
   const { SVG_NS, ACC, label, toMidi, buildMaccann, sampleFor, loopCache, playNote, spell } = Concertina;
@@ -134,6 +144,7 @@
   // Ranges (written): soprano C4–A4, alto B3–F4, tenor E3–C4, bass C3–G3 (the left hand's lowest button is C3).
   // Melody: liederkiste.com, "Volksweise seit Anfang des 19. Jahrhunderts", transposed from G.
   const SOPRANO = [
+    'r:2 r:1 G4:0.5:Gu- F4:0.5:ter',   // pickup: the accompaniment starts on "Mond"
     'E4:1:Mond, E4:1:du E4:0.5:gehst F4:0.5 G4:0.5:so A4:0.5',
     'G4:0.5:stil- F4:0.5 D4:1:le r:1 G4:0.5:durch F4:0.5:die',
     'E4:1:A- E4:1:bend- D4:0.5:wol- C4:0.5 D4:0.5:ken E4:0.5',
@@ -153,11 +164,13 @@
   ];
   // Alto, tenor, bass per bar. The three phrases "Mond, du gehst so" (P1), "stil-le, durch die" (P2) and
   // "A-bend-wol-ken" (P3) come back three times with the same setting.
+  const REST = ['r:4', 'r:4', 'r:4'];   // the pickup bar
   const PLAIN = (() => {
     const P1 = ['C4:4', 'G3:2 A3:2', 'C3:1 E3:2 F3:1'];
     const P2 = ['C4:1 D4:3', 'A3:1 B3:3', 'D3:1 G3:3'];
     const P3 = ['C4:2 B3:2', 'G3:1 E3:1 G3:1 F3:1', 'C3:2 D3:2'];
     return [
+      REST,
       P1, P2, P3,
       ['C4:3 B3:1', 'E3:2 G3:2', 'C3:2 E3:1 D3:1'],
       P1, P2, P3,
@@ -176,6 +189,7 @@
     const P2 = ['C4:1 D4:3', 'A3:1 B3:1 C4:0.5 B3:0.5 B3:1', 'D3:1 G3:1 F3:0.5 D3:0.5 G3:1'];
     const P3 = ['C4:2 B3:2', 'G3:1 E3:1 G3:1 F3:1', 'C3:0.5 E3:0.5 C3:1 D3:2'];
     return [
+      REST,
       P1, P2, P3,
       ['C4:2 C4:0.5 D4:0.5 B3:1', 'E3:1 F3:0.5 G3:0.5 G3:2', 'C3:1.5 D3:0.5 E3:1 D3:1'],
       P1, P2, P3,
@@ -193,6 +207,7 @@
   // button between them (20 beats in PLAIN, 1 here), within four columns, little vertical stretch, held
   // notes where possible; the alto may go down to G3. Re-run the tool after changing HARMONY or SOPRANO.
   const GRIFFIG = [
+    ['r:4', 'r:4', 'r:4'],
     ['E4:1 C4:3', 'G3:2 A3:2', 'C3:1 E3:2 F3:1'],
     ['C4:1 D4:2 F4:1', 'F3:1 B3:3', 'D3:1 G3:3'],
     ['G3:2 B3:2', 'E3:2 G3:1 F3:1', 'C3:2 D3:2'],
@@ -210,14 +225,37 @@
     ['G3:2 B3:2', 'E3:2 G3:1 F3:1', 'C3:2 D3:2'],
     ['G3:4', 'E3:4', 'C3:4'],
   ];
+  // Two voices in the left hand, an upper line and the bass, under the melody; the chord's third is in one
+  // of the three voices. Generated by VOICES=2 node tools/grips.mjs (the same grip rules as GRIFFIG), so it
+  // is the same in every Fassung.
+  const ZWEI = [
+    ['r:4', 'r:4'],
+    ['G3:2 C4:1 A3:1', 'C3:1 E3:2 F3:1'],
+    ['F3:1 B3:3', 'D3:1 G3:3'],
+    ['E3:2 B3:2', 'C3:2 D3:2'],
+    ['E3:2 G3:1 B3:1', 'C3:2 E3:1 D3:1'],
+    ['G3:2 C4:1 A3:1', 'C3:1 E3:2 F3:1'],
+    ['F3:1 B3:3', 'D3:1 G3:3'],
+    ['E3:2 B3:2', 'C3:2 D3:2'],
+    ['E3:2 C4:1 B3:1', 'C3:2 E3:1 D3:1'],
+    ['F3:1 B3:3', 'D3:2 G3:2'],
+    ['E3:1 C4:2 E4:1', 'C3:1 E3:2 C3:1'],
+    ['A3:1 F3:1 A3:1 B3:1', 'F3:1 D3:1 C3:1 G3:1'],
+    ['E3:1 B3:3', 'C3:1 D3:1 G3:2'],
+    ['G3:2 C4:1 A3:1', 'C3:1 E3:2 F3:1'],
+    ['F3:1 B3:3', 'D3:1 G3:3'],
+    ['E3:2 B3:2', 'C3:2 D3:2'],
+    ['E3:4', 'C3:4'],
+  ];
   const VARIANTS = { plain: PLAIN, moving: MOVING, griffig: GRIFFIG };
   // Chord symbols (written in C; shown in C♯), one per beat ('-' = none) or one per bar
   const HARMONY = [
-    'C C/E Am/E F', 'Dm7 G - G7', 'C - G/D G7/D', 'C - C/E G/D',
+    '-', 'C C/E Am/E F', 'Dm7 G - G7', 'C - G/D G7/D', 'C - C/E G/D',
     'C C/E Am/E F', 'Dm7 G - G7', 'C - G/D G7/D', 'C - Am/E G/D', 'Dm7 G/D G -', 'C C/E Am/E C',
     'F Dm Am/C G7', 'C G/D G -', 'C C/E Am/E F', 'Dm7 G - G7', 'C - G/D G7/D', 'C',
   ];
   const SECTIONS = { 0: 'Strophe' };
+  const START = 3;   // the pickup "Gu-ter": where playback starts
   const BEATS = 4;
   const harmony = HARMONY.flatMap((h, bar) => {
     const names = h.split(' ');
@@ -237,11 +275,11 @@
   let events = [], onsets = [];   // { voice, hand, bar, beat, beats, notes (spelling), midis, syllable }
   function buildEvents() {
     events = [];
-    const bars = VARIANTS[variant];
+    const bars = altHand === 'two' ? ZWEI.map(([t, b]) => ['r:4', t, b]) : VARIANTS[variant];
     SOPRANO.forEach((s, bar) => {
       const [a, t, b] = bars[bar];
       for (const [voice, line] of [['S', s], ['A', a], ['T', t], ['B', b]]) {
-        if (altHand === 'one' && (voice === 'A' || voice === 'T')) continue;
+        if ((altHand === 'one' && (voice === 'A' || voice === 'T')) || (altHand === 'two' && voice === 'A')) continue;
         const wanted = voice === 'S' || (voice === 'A' && altHand === 'right') ? 'right' : 'left';
         let beat = bar * BEATS;
         for (const tok of line.trim().split(/\s+/)) {
@@ -330,6 +368,7 @@
   }
 
   function drawEvent(e, x, bottom, treble) {
+    if (e.bar === 0 && !e.midis.length) return;   // the pickup bar shows only "Gu-ter"
     const g = svgEl('g', { class: 'ev' });
     e.el = g;
     // Stems: melody up, alto down under the melody but up next to tenor and bass; tenor up, bass down
@@ -376,7 +415,7 @@
   const soundingAt = beat => events.filter(e => e.beat <= beat && beat < e.beat + e.beats);
   const sectionAt = bar => { for (let b = bar; b >= 0; b--) if (SECTIONS[b]) return SECTIONS[b]; return ''; };
 
-  let nowBeat = 0, nowKey = '', playing = false;
+  let nowBeat = START, nowKey = '', playing = false;
   function showNow(beat, force) {
     const now = soundingAt(beat);
     const key = now.map(e => events.indexOf(e)).join();
@@ -384,7 +423,7 @@
     nowKey = key;
     nowBeat = beat;
     for (const e of events) e.el?.classList.toggle('now', now.includes(e));
-    const chordNow = playing && harmony.findLast(h => h.el && h.beat <= beat);
+    const chordNow = (playing || stepped) && harmony.findLast(h => h.el && h.beat <= beat);
     for (const h of harmony) h.el?.classList.toggle('now', h === chordNow);
     const next = events.filter(e => e.beat === onsets.find(b => b > beat) && e.midis.length);
     const on = new Set(), soon = new Set();
@@ -457,12 +496,11 @@
   }
 
   function setVoiceGains() {
-    if (!voiceGain) return;
-    for (const v in voiceGain) voiceGain[v].gain.setTargetAtTime(audible[v] ? LEVEL[v] : 0, ctx.currentTime, 0.02);
+    for (const g of [voiceGain, stepGain]) if (g)
+      for (const v in g) g[v].gain.setTargetAtTime(audible[v] ? LEVEL[v] : 0, ctx.currentTime, 0.02);
   }
 
-  async function play(fromBeat = 0) {
-    stop();
+  async function ensureAudio() {
     if (!ctx) {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
       out = ctx.createDynamicsCompressor();
@@ -470,6 +508,30 @@
       getLoop = loopCache(ctx);
     }
     if (ctx.state !== 'running') await ctx.resume();
+  }
+  const loadFailed = () => {
+    $('status').textContent = location.protocol === 'file:'
+      ? 'Playing needs the page served over http: in the folder run python3 -m http.server, then open http://localhost:8000/backing.html'
+      : 'Could not load the recordings.';
+  };
+  const loadSounds = e => Promise.all(e.midis.map(async m => {
+    const { file, rate } = sampleFor(buttonFor(e.hand, m));
+    return { buffer: await getLoop(file), rate };
+  }));
+  function makeVoiceGains(dest) {
+    const g = {};
+    for (const v of ['S', 'A', 'T', 'B']) {
+      g[v] = ctx.createGain();
+      g[v].gain.value = audible[v] ? LEVEL[v] : 0;
+      g[v].connect(dest);
+    }
+    return g;
+  }
+
+  async function play(fromBeat = START) {
+    if (Number(tempoInput.value) === 0) return stepTo(onsetFrom(fromBeat));   // 0 bpm: one grip at a time
+    stop();
+    await ensureAudio();
     playing = true;
     setPlayButtons(true);
     $('status').textContent = 'Loading…';
@@ -477,14 +539,9 @@
     const todo = events.filter(e => e.beat >= fromBeat && e.midis.length);
     let sounds;
     try {
-      sounds = await Promise.all(todo.map(e => Promise.all(e.midis.map(async m => {
-        const { file, rate } = sampleFor(buttonFor(e.hand, m));
-        return { buffer: await getLoop(file), rate };
-      }))));
+      sounds = await Promise.all(todo.map(loadSounds));
     } catch {
-      $('status').textContent = location.protocol === 'file:'
-        ? 'Playing needs the page served over http: in the folder run python3 -m http.server, then open http://localhost:8000/backing.html'
-        : 'Could not load the recordings.';
+      loadFailed();
       return stop();
     }
     if (!playing) return;
@@ -492,12 +549,7 @@
 
     const bellows = ctx.createGain();
     bellows.connect(out);
-    voiceGain = {};
-    for (const v of ['S', 'A', 'T', 'B']) {
-      voiceGain[v] = ctx.createGain();
-      voiceGain[v].gain.value = audible[v] ? LEVEL[v] : 0;
-      voiceGain[v].connect(bellows);
-    }
+    voiceGain = makeVoiceGains(bellows);
     timeline = makeTimeline(fromBeat, ctx.currentTime + 0.12);
     scheduleBellows(bellows, fromBeat, timeline);
 
@@ -511,7 +563,7 @@
     const tick = () => {
       if (!playing) return;
       const beat = timeline.beat(ctx.currentTime);
-      if (beat >= totalBeats) { stop(); showNow(0, true); return; }
+      if (beat >= totalBeats) { stop(); showNow(START, true); return; }
       showNow(Math.max(fromBeat, beat));
       rafId = requestAnimationFrame(tick);
     };
@@ -519,7 +571,51 @@
     tick();
   }
 
+  // ---------- step mode: the Next button, and Play at 0 bpm ----------
+  // Each step sounds the notes that sound at the next onset and holds them until the next step: notes that
+  // go on (held in the score) keep sounding, the others stop.
+  let held = new Map(), stepGain = null, stepped = false, stepToken = 0;   // held: event -> sounding notes
+  const noteOnsets = () => onsets.filter(b => events.some(e => e.beat === b && e.midis.length));
+  const onsetFrom = beat => noteOnsets().find(b => b >= beat - 1e-6) ?? START;
+  function release(notes) {
+    for (const { src, gain } of notes) {
+      gain.gain.cancelScheduledValues(ctx.currentTime);
+      gain.gain.setTargetAtTime(0, ctx.currentTime, 0.03);
+      try { src.stop(ctx.currentTime + 0.2); } catch { /* not started */ }
+    }
+  }
+  async function stepTo(beat) {
+    if (playing) stop();
+    const token = ++stepToken;
+    await ensureAudio();
+    if (!stepGain) stepGain = makeVoiceGains(out);
+    const now = soundingAt(beat).filter(e => e.midis.length), fresh = now.filter(e => !held.has(e));
+    let sounds;
+    try { sounds = await Promise.all(fresh.map(loadSounds)); } catch { loadFailed(); return; }
+    if (token !== stepToken) return;   // a newer step came in while loading
+    $('status').textContent = '';
+    for (const [e, notes] of held) if (!now.includes(e)) { release(notes); held.delete(e); }
+    const t = ctx.currentTime + 0.02;
+    fresh.forEach((e, k) => held.set(e, sounds[k].map(s => playNote(ctx, stepGain[e.voice], s.buffer, s.rate, t, t + 600, 1))));
+    stepped = true;
+    setPlayButtons(true);
+    showNow(beat, true);
+  }
+  function next() {
+    if (playing) {
+      const b = noteOnsets().find(o => o > timeline.beat(ctx.currentTime) + 1e-6);
+      return b === undefined ? stop() : play(b);
+    }
+    const b = stepped ? noteOnsets().find(o => o > nowBeat + 1e-6) : onsetFrom(nowBeat);
+    if (b === undefined) { stop(); showNow(START, true); return; }   // past the end: back to the start
+    stepTo(b);
+  }
+
   function stop() {
+    stepToken++;
+    if (ctx) for (const notes of held.values()) release(notes);
+    held.clear();
+    stepped = false;
     playing = false;
     cancelAnimationFrame(rafId);
     for (const { src, gain } of sources) {
@@ -536,9 +632,11 @@
   function setPlayButtons(on) {
     for (const b of playButtons) { b.textContent = on ? '■ Stop' : '▶ Play'; b.classList.toggle('listening', on); }
   }
-  for (const b of playButtons) b.onclick = () => (playing ? stop() : play(nowBeat < totalBeats - 0.01 ? Math.floor(nowBeat) : 0));
+  for (const b of playButtons) b.onclick = () => (playing || held.size ? stop() : play(nowBeat < totalBeats - 0.01 ? Math.floor(nowBeat) : START));
+  for (const b of document.querySelectorAll('[data-next]')) b.onclick = next;
   document.addEventListener('keydown', e => {
     if (e.key === ' ' && e.target === document.body) { e.preventDefault(); $('play').click(); }
+    if (e.key === 'ArrowRight' && (e.target === document.body || e.target.tagName === 'BUTTON')) { e.preventDefault(); next(); }
   });
 
   const showTempo = () => { $('tempoValue').textContent = `${tempoInput.value} bpm`; };
@@ -547,12 +645,13 @@
   tempoInput.addEventListener('input', showTempo);
   tempoInput.addEventListener('change', () => {
     store('tempo', Number(tempoInput.value));
-    if (playing) play(Math.floor(nowBeat));
+    if (playing && Number(tempoInput.value) === 0) stop();
+    else if (playing) play(Math.floor(nowBeat));
   });
 
   // Fassung and alto hand rebuild the score; voice checkboxes only change what sounds
   function setChoice(kind, value) {
-    if (playing) stop();
+    if (playing || held.size) stop();
     if (kind === 'variant') variant = value; else altHand = value;
     store(kind === 'variant' ? kind : 'hand', value);
     $('varPlain').setAttribute('aria-pressed', String(variant === 'plain'));
@@ -561,6 +660,9 @@
     $('altRight').setAttribute('aria-pressed', String(altHand === 'right'));
     $('altLeft').setAttribute('aria-pressed', String(altHand === 'left'));
     $('leftOne').setAttribute('aria-pressed', String(altHand === 'one'));
+    $('leftTwo').setAttribute('aria-pressed', String(altHand === 'two'));
+    // Two voices left: one griffig setting, the same in every Fassung
+    for (const id of ['varPlain', 'varMoving', 'varGrip']) $(id).disabled = altHand === 'two';
     buildEvents();
     nowKey = '';
     drawScore();
@@ -571,6 +673,7 @@
   $('altRight').onclick = () => setChoice('altHand', 'right');
   $('altLeft').onclick = () => setChoice('altHand', 'left');
   $('leftOne').onclick = () => setChoice('altHand', 'one');
+  $('leftTwo').onclick = () => setChoice('altHand', 'two');
   for (const box of document.querySelectorAll('[data-voice]')) {
     const v = box.dataset.voice;
     box.checked = !!audible[v];
@@ -582,7 +685,7 @@
     const perLine = score.clientWidth < 560 ? 2 : 3;
     if (perLine !== (score.viewBox.baseVal.width === 420 ? 2 : 3)) drawScore();
   });
-  window.__choral = { VARIANTS, SOPRANO };   // for tests
+  window.__choral = { VARIANTS, SOPRANO, ZWEI };   // for tests
 })();
 </script>
 </body>

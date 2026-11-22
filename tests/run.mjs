@@ -523,7 +523,7 @@ async function runBackingCase(w) {
   let r = await run(7000);
   if (!r.lit.includes('LC3 RE4')) problems.push(`one-voice left never lit: LC3 RE4 (saw ${r.lit.join(' | ')}; ${r.status})`);
   if (r.lit.some(l => l.split(' ').filter(x => x[0] === 'L').length > 1)) problems.push('left hand plays more than the bass by default');
-  if (await w.ev(`document.getElementById('tempo').min`) !== '1') problems.push('tempo slider does not start at 1 bpm');
+  if (await w.ev(`document.getElementById('tempo').min`) !== '0') problems.push('tempo slider does not start at 0 bpm');
   await w.ev(`document.getElementById('altLeft').click(); true`);
   r = await run(7000);
   for (const want of ['LC3 LC4 LG3 RE4', 'LC3 LC4 LE3 RC4'])
@@ -538,6 +538,36 @@ async function runBackingCase(w) {
   await w.ev(`document.getElementById('varMoving').click(); document.getElementById('altRight').click(); true`);
   r = await run(7000);
   if (!r.lit.includes('LC3 LE3 RC4')) problems.push(`moving, alto right never lit: LC3 LE3 RC4 (saw ${r.lit.join(' | ')}; ${r.status})`);
+  // Two voices left: the Fassung buttons are off, from "dir" the left hand holds at most two buttons
+  await w.ev(`document.getElementById('leftTwo').click(); true`);
+  if (!(await w.ev(`document.getElementById('varPlain').disabled`))) problems.push('Fassung still selectable with two voices left');
+  r = await run(4000);
+  if (!r.lit.includes('LC3 LE3 RE4')) problems.push(`two voices left never lit: LC3 LE3 RE4 (saw ${r.lit.join(' | ')}; ${r.status})`);
+  if (r.lit.some(l => l.split(' ').filter(x => x[0] === 'L').length > 2)) problems.push('left hand plays more than two voices');
+  // The pickup: the melody starts with "Gu-ter" alone, the first chord symbol is under "Mond"
+  const pickup = await w.ev(`(() => { const ev = [...document.querySelectorAll('.score .ev')].map(g => g.textContent).filter(Boolean);
+    return { first: ev.slice(0, 2).join(' '), chord: document.querySelector('.score .chord-sym').getBoundingClientRect().x,
+      mond: [...document.querySelectorAll('.score .ev')].find(g => g.textContent === 'Mond,').getBoundingClientRect().x }; })()`);
+  if (pickup.first !== 'Gu- ter') problems.push(`score starts with ${pickup.first}`);
+  if (Math.abs(pickup.chord - pickup.mond) > 12) problems.push(`first chord symbol not at "Mond" (${pickup.chord} vs ${pickup.mond})`);
+  // 0 bpm: tapping "Gu-" sounds one note and holds it; each Next goes one onset further
+  await w.ev(`document.getElementById('leftOne').click(); const sop = document.querySelector('[data-voice=S]'); if (!sop.checked) sop.click(); const t = document.getElementById('tempo'); t.value = 0; t.dispatchEvent(new Event('change')); true`);
+  const step = await w.ev(`(async () => {
+    const lit = () => [...document.querySelectorAll('.maccann .btn')].map((g, i) => g.classList.contains('on') ? (i < 25 ? 'L' : 'R') + g.querySelector('text').textContent : '').filter(Boolean).sort().join(' ');
+    const loud = () => { const buf = new Float32Array(2048); window.__out.getFloatTimeDomainData(buf); let e = 0; for (const v of buf) e += v * v; return Math.sqrt(e / buf.length); };
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    const seen = [];
+    [...document.querySelectorAll('.score .ev')].find(g => g.textContent === 'Gu-').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await wait(1500); seen.push(lit());
+    const held = window.__out ? loud() : 1;
+    for (let i = 0; i < 2; i++) { document.querySelector('[data-next]').click(); await wait(800); seen.push(lit()); }
+    const stillLoud = window.__out ? loud() : 1;
+    document.getElementById('play').click(); await wait(500);
+    return { seen, held, stillLoud, after: window.__out ? loud() : 0 };
+  })()`);
+  if (step.seen.join(' | ') !== 'RG4 | RF4 | LC3 RE4') problems.push(`0 bpm steps lit ${step.seen.join(' | ')}`);
+  if (!(step.held > 0.01 && step.stillLoud > 0.01)) problems.push(`0 bpm: the note does not hold (${step.held}, ${step.stillLoud})`);
+  if (!(step.after < 0.005)) problems.push(`Stop does not silence the held notes (${step.after})`);
   if (w.errors.length) problems.push(`page error: ${w.errors[0]}`);
   return problems.join('; ') || null;
 }
