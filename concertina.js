@@ -77,13 +77,40 @@
       for (const [x, y, note] of MACCANN[hand]) {
         const midi = toMidi(note);
         const g = svgEl('g', { class: 'btn' + (note.length > 2 ? ' accidental' : '') });
-        svgEl('circle', { cx: X(x), cy: Y(y), r: 31 }, g);
+        svgEl('circle', { cx: X(x), cy: Y(y), r: 33.5 }, g);   // the nearest buttons are 69.7 apart
         const t = svgEl('text', { x: X(x), y: Y(y) }, g);
         svgEl('title', {}, g);
         buttons.push({ midi, g, t, hand });
       }
     }
+    svg.setAttribute('viewBox', ZOOM_VIEW.both);   // the buttons' extent, no empty margins
+    if (svg.hasAttribute('data-zoom')) enableZoom(svg);
     return buttons;
+  }
+
+  // Tap-to-zoom (svg.maccann[data-zoom]): a tap shows the tapped hand's side alone, as big as the screen allows,
+  // by turning the keyboard's card into a full-screen layer and narrowing the viewBox; the lit buttons stay
+  // live. A tap on it, ✕ or Esc goes back.
+  const ZOOM_VIEW = { both: '20 6 964 514', left: '18 6 436 514', right: '568 6 416 514' };
+  function enableZoom(svg) {
+    const card = svg.closest('.card') || svg.parentElement;
+    const close = document.createElement('button');
+    close.className = 'zoom-close';
+    close.textContent = '✕';
+    close.setAttribute('aria-label', 'Verkleinern');
+    card.appendChild(close);
+    const set = side => {
+      card.classList.toggle('zoomed', !!side);
+      document.body.classList.toggle('zoom-open', !!side);
+      svg.setAttribute('viewBox', ZOOM_VIEW[side || 'both']);
+    };
+    svg.addEventListener('click', ev => {
+      if (card.classList.contains('zoomed')) return set(null);
+      const r = svg.getBoundingClientRect(), [x0, , w] = ZOOM_VIEW.both.split(' ').map(Number);
+      set(x0 + (ev.clientX - r.left) / r.width * w < 500 ? 'left' : 'right');
+    });
+    close.onclick = () => set(null);
+    addEventListener('keydown', e => { if (e.key === 'Escape') set(null); });
   }
 
   // ---------- recordings ----------

@@ -3,7 +3,7 @@
 // grip compact on the Edeophone layout (MACCANN in concertina.js) and to move as few buttons as little as
 // possible from grip to grip (held notes cost nothing). Hard rules: voice ranges, S ≥ A ≥ T ≥ B, no
 // parallel fifths/octaves between any two voices, A–T within an octave, the chord's third present.
-// Prints the GRIFFIG table to paste into backing.html, and grip statistics for each version.
+// Prints the GRIFFIG table to paste into backing.html, and its grip statistics.
 // VOICES=2: the two-voice left hand instead (an upper line and the bass under the melody, the third in
 // one of the three voices), printed as the ZWEI table (per bar [upper, bass]).
 // Bars whose HARMONY is '-' (the pickup) are rests.
@@ -15,7 +15,7 @@ new Function('window', 'document', fs.readFileSync(root + 'concertina.js', 'utf8
 const { MACCANN, toMidi } = win.Concertina;
 const html = fs.readFileSync(root + 'backing.html', 'utf8');
 const body = html.slice(html.indexOf('const SOPRANO'), html.indexOf('const SECTIONS'));
-const { SOPRANO, PLAIN, MOVING, HARMONY } = new Function(body.replace(/const VARIANTS[^\n]*\n/, '') + '; return { SOPRANO, PLAIN, MOVING, HARMONY };')();
+const { SOPRANO, HARMONY } = new Function(body + '; return { SOPRANO, HARMONY };')();
 const TWO = process.env.VOICES === '2';
 
 const LEFT = new Map(MACCANN.left.map(([x, y, n]) => [toMidi(n), [x, y]]));
@@ -161,6 +161,5 @@ function stats(V) {
     `vertical stretch > 2 rows: ${info.filter(i => i.ySpan > 2 * ROW).length}, mean span ${(spans.reduce((a, b) => a + b) / spans.length).toFixed(0)} pt, ` +
     `buttons changed per beat ${(moves.reduce((a, b) => a + b) / moves.length).toFixed(2)}`;
 }
-if (!TWO) console.error('plain  :', stats(PLAIN));
 console.error(TWO ? 'zwei   :' : 'griffig:', stats(lines));
 if (process.env.WIDE) best.forEach((g, b) => { if (g && gripInfo(g).far || gripInfo(g).ySpan > 2 * ROW) console.error(`beat ${b} bar ${Math.floor(b / 4)}.${b % 4 + 1} ${beats[b]}: ${g.map(name).join(' ')} span ${span(g).toFixed(0)} ${JSON.stringify(gripInfo(g))}`); });

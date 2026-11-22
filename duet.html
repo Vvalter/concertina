@@ -11,10 +11,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V23">
+<link rel="stylesheet" href="concertina.css?v=V24">
 <style>
   a.back { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
-  .intro { color: var(--muted); font-size: 0.9rem; margin: 0; line-height: 1.45; }
   .controls input[type=range] { width: 9em; accent-color: var(--accent); }
   .tempo-value { font-variant-numeric: tabular-nums; min-width: 4.5em; }
   svg.score { width: 100%; height: auto; display: block; }
@@ -66,7 +65,7 @@
 <main>
   <header>
     <div>
-      <a class="back" href="index.html">← Note Listener</a> · <a class="back" href="song.html">Melodie allein</a>
+      <a class="back" href="index.html">← Menü</a> · <a class="back" href="song.html">Melodie allein</a>
       <h1>Hänschen klein – Duett</h1>
     </div>
     <div class="controls">
@@ -81,14 +80,6 @@
     </div>
   </header>
 
-  <p class="intro">
-    Für Duett-Konzertina: rechts die Melodie eine Oktave höher, links ein Umpa-Bass. „Aber Mutter weinet sehr“
-    kommt leise in Terzen über gehaltenen Akkorden, die letzte Strophe laut, und am Schluss schüttelt der Balg
-    (Balgtremolo). Beide Hände klingen durch denselben Balg: jede Phrase schwillt an und ab, und beim Balgwechsel
-    gibt es einen kleinen Einschnitt. Die Buchstaben über den Noten sind die Akkorde (C = C-Dur, G = G-Dur bzw. G7).
-    <b>Einfach</b>: jede Hand spielt immer nur einen Ton, rechts die Melodie, links Grundton und Quinte.
-  </p>
-
   <section class="card">
     <svg class="score" id="score" aria-label="Noten"></svg>
   </section>
@@ -101,14 +92,14 @@
       <button class="start play-mini" data-play>▶ Play</button>
     </div>
     <p class="sub">Gefüllt: jetzt drücken · gestrichelt: als Nächstes. Auf eine Note tippen, um dort anzufangen.</p>
-    <svg class="maccann" id="maccann" viewBox="0 0 1000 520" aria-label="Maccann duet keyboard"></svg>
+    <svg class="maccann" id="maccann" data-zoom viewBox="20 6 964 514" aria-label="Maccann duet keyboard"></svg>
   </section>
 
   <div class="status" id="status"></div>
 </main>
 
-<script src="concertina.js?v=V23"></script>
-<script src="pwa.js?v=V23"></script>
+<script src="concertina.js?v=V24"></script>
+<script src="pwa.js?v=V24"></script>
 <script>
 (() => {
   const { SVG_NS, ACC, spell, label, toMidi, buildMaccann, sampleFor, loopCache, playNote } = Concertina;

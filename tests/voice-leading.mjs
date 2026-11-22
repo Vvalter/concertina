@@ -2,14 +2,14 @@
 // fifths/octaves between any two voices, for all versions. Usage: node tests/voice-leading.mjs backing.html
 import fs from 'fs';
 const src = fs.readFileSync(process.argv[2], 'utf8');
-const body = src.slice(src.indexOf('const SOPRANO'), src.indexOf('const VARIANTS'));
-const { SOPRANO, PLAIN, MOVING, GRIFFIG, ZWEI } = new Function(body + '; return { SOPRANO, PLAIN, MOVING, GRIFFIG, ZWEI };')();
+const body = src.slice(src.indexOf('const SOPRANO'), src.indexOf('const HARMONY'));
+const { SOPRANO, GRIFFIG, ZWEI } = new Function(body + '; return { SOPRANO, GRIFFIG, ZWEI };')();
 const PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 const midi = n => { const [, l, o] = n.match(/^([A-G])(\d)$/); return 12 * (+o + 1) + PC[l]; };
 const RANGE = { S: [60, 69], A: [59, 65], T: [52, 60], B: [48, 55] };
 // ZWEI (two voices in the left hand): no alto, the upper line is checked as the tenor and may go up to E4
 const zwei = ZWEI.map(([t, b]) => ['r:4', t, b]);
-for (const [name, V] of [['plain', PLAIN], ['moving', MOVING], ['griffig', GRIFFIG], ['zwei', zwei]]) {
+for (const [name, V] of [['griffig', GRIFFIG], ['zwei', zwei]]) {
   RANGE.A[0] = name === 'griffig' ? 55 : 59;   // Griffig: the alto is in the left hand and may go down to G3
   RANGE.T[1] = name === 'zwei' ? 64 : 60;
   const voices = { S: [], A: [], T: [], B: [] };

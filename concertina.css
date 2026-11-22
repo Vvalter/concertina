@@ -59,9 +59,25 @@ button.start.listening { background: var(--bad); }
 }
 svg.maccann { width: 100%; height: auto; display: block; transition: opacity 0.3s; }
 svg.maccann.stale { opacity: 0.45; }
+/* Tap-to-zoom (concertina.js enableZoom): the keyboard's card fills the screen with one hand's side */
+svg.maccann[data-zoom] { cursor: zoom-in; }
+.zoom-close { display: none; }
+.card.zoomed {
+  position: fixed; inset: 0; z-index: 50; border-radius: 0; margin: 0; max-width: none;
+  display: flex; flex-direction: column; padding: 12px 12px max(12px, env(safe-area-inset-bottom));
+}
+.card.zoomed svg.maccann { flex: 1; min-height: 0; width: 100%; height: 100%; cursor: zoom-out; }
+.card.zoomed .sub { display: none; }
+.card.zoomed .now-line { padding-right: 52px; }
+.card.zoomed .play-mini { display: block; }
+.card.zoomed .zoom-close {
+  display: block; position: absolute; top: 10px; right: 10px; width: 40px; height: 40px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--panel); color: var(--ink); font: 600 18px system-ui, sans-serif; cursor: pointer;
+}
+body.zoom-open { overflow: hidden; }
 .maccann .btn circle { fill: var(--panel); stroke: var(--muted); stroke-width: 2.5; }
 .maccann .btn.accidental circle { fill: var(--line); }
-.maccann .btn text { fill: var(--ink); font: 700 22px system-ui, sans-serif; text-anchor: middle; dominant-baseline: central; }
+.maccann .btn text { fill: var(--ink); font: 700 24px system-ui, sans-serif; text-anchor: middle; dominant-baseline: central; }
 .maccann .btn.on circle { fill: var(--accent); stroke: var(--accent); }
 .maccann .btn.on text { fill: #fff; }
 .maccann .hand { fill: var(--muted); font: 600 20px system-ui, sans-serif; text-anchor: middle; }

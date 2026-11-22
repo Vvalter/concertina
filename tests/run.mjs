@@ -123,6 +123,8 @@ cases.push({ group: 'song', name: 'Hänschen klein – Duett', settings: SETTING
 cases.push({ group: 'song', name: 'Hänschen klein – Duett, einfach', settings: SETTINGS, duet: true, simple: true });
 cases.push({ group: 'song', name: 'Guter Mond – Choral', settings: SETTINGS, backing: true });
 cases.push({ group: 'song', name: 'Drucken', settings: SETTINGS, backing: true, print: true });
+cases.push({ group: 'song', name: 'Tastatur vergrößern', settings: SETTINGS, backing: true, zoom: true });
+cases.push({ group: 'song', name: 'Menü', settings: SETTINGS, menu: true });
 
 const selected = cases.filter(c => !filters.length || filters.some(w => c.group.includes(w) || c.name.includes(w)));
 
@@ -213,13 +215,13 @@ async function startWorker(n) {
   await cdp('Runtime.enable');
   await cdp('Page.enable');
   await cdp('Page.addScriptToEvaluateOnNewDocument', { source: INJECT });
-  const open = async (page = 'index.html') => {
+  const open = async (page = 'listen.html') => {
     await cdp('Page.navigate', { url: `${ORIGIN}/${page}` });
     for (let i = 0; i < 100 && await ev('document.readyState').catch(() => '') !== 'complete'; i++) await sleep(20);
   };
   await open();
   const close = () => { ws.close(); proc.kill(); setTimeout(() => fs.rmSync(profile, { recursive: true, force: true }), 500); };
-  return { ev, open, errors, close };
+  return { ev, open, errors, close, cdp };
 }
 
 async function runCase(w, c) {
@@ -227,15 +229,16 @@ async function runCase(w, c) {
   if (c.song) await w.ev(`localStorage.setItem('noteListener.songTempo', '160')`);
   if (c.duet) await w.ev(`localStorage.setItem('noteListener.duetTempo', '160')`);
   if (c.duet) await w.ev(`localStorage.setItem('noteListener.duetVersion', '${c.simple ? 'simple' : 'full'}')`);
-  if (c.backing) await w.ev(`localStorage.setItem('noteListener.choral.tempo', '112'); ['variant', 'altHand', 'voices'].forEach(k => localStorage.removeItem('noteListener.choral.' + k))`);
-  await w.open(c.song ? 'song.html' : c.duet ? 'duet.html' : c.backing ? 'backing.html' : 'index.html');
+  if (c.backing) await w.ev(`localStorage.setItem('noteListener.choral.tempo', '112'); ['hand', 'voices'].forEach(k => localStorage.removeItem('noteListener.choral.' + k))`);
+  await w.open(c.song ? 'song.html' : c.duet ? 'duet.html' : c.backing ? 'backing.html' : c.menu ? 'index.html' : 'listen.html');
   w.errors.length = 0;
   if (c.play) return runPlayCase(w);
   if (c.mic) return runMicCase(w);
   if (c.hear) return runHearCase(w);
   if (c.song) return runSongCase(w);
   if (c.duet) return c.simple ? runDuetSimpleCase(w) : runDuetCase(w);
-  if (c.backing) return c.print ? runPrintCase(w) : runBackingCase(w);
+  if (c.backing) return c.print ? runPrintCase(w) : c.zoom ? runZoomCase(w) : runBackingCase(w);
+  if (c.menu) return runMenuCase(w);
   await w.ev(`document.getElementById('start').click()`);
   await sleep(150);
   await w.ev(`window.__play(${JSON.stringify(c.files)})`);
@@ -497,10 +500,9 @@ async function runDuetCase(w) {
   return problems.join('; ') || null;
 }
 
-// Chorale page (Guter Mond): default C major, plain version, the left hand plays only the bass; then the
-// three accompanying voices in the left hand. Chord symbols are C-major harmonies, no key signature; from "dir nicht folgen kann" the right hand
-// lights only the melody, the left hand alto, tenor and bass, and something sounds. Then the version with
-// passing notes and the alto in the right hand (at the end alto and melody share the C4 button).
+// Chorale page (Guter Mond): C major, chord symbols are C-major harmonies, no key signature. By default the
+// left hand plays only the bass; then three voices left (from "dir nicht folgen kann" the right hand lights
+// only the melody), two voices left, the pickup, and 0 bpm step mode.
 async function runBackingCase(w) {
   const problems = [];
   const sharpCount = () => w.ev(`[...document.querySelectorAll('.score > text.glyph')].filter(t => t.textContent === '♯').length`);
@@ -524,23 +526,18 @@ async function runBackingCase(w) {
   if (!r.lit.includes('LC3 RE4')) problems.push(`one-voice left never lit: LC3 RE4 (saw ${r.lit.join(' | ')}; ${r.status})`);
   if (r.lit.some(l => l.split(' ').filter(x => x[0] === 'L').length > 1)) problems.push('left hand plays more than the bass by default');
   if (await w.ev(`document.getElementById('tempo').min`) !== '0') problems.push('tempo slider does not start at 0 bpm');
+  // Three voices left (Griffig, the only setting): from "dir" the compact grip C3 E3 G3 under the melody's E4,
+  // at the end C3 E3 G3 under C4
   await w.ev(`document.getElementById('altLeft').click(); true`);
   r = await run(7000);
-  for (const want of ['LC3 LC4 LG3 RE4', 'LC3 LC4 LE3 RC4'])
-    if (!r.lit.includes(want)) problems.push(`C plain never lit: ${want} (saw ${r.lit.join(' | ')}; ${r.status})`);
+  for (const want of ['LC3 LE3 LG3 RE4', 'LC3 LE3 LG3 RC4'])
+    if (!r.lit.includes(want)) problems.push(`three voices left never lit: ${want} (saw ${r.lit.join(' | ')}; ${r.status})`);
   if (r.lit.some(l => l.split(' ').filter(x => x[0] === 'R').length > 1)) problems.push('right hand plays more than the melody');
   if (!(r.loud > 0.01)) problems.push(`hardly anything sounds (${r.loud})`);
   if (r.playing) problems.push('still playing after the end');
-  // Griffig: from "dir" the left hand holds the compact grip C3 E3 G3 under the melody's E4
-  await w.ev(`document.getElementById('varGrip').click(); true`);
-  r = await run(4000);
-  if (!r.lit.includes('LC3 LE3 LG3 RE4')) problems.push(`Griffig never lit: LC3 LE3 LG3 RE4 (saw ${r.lit.join(' | ')}; ${r.status})`);
-  await w.ev(`document.getElementById('varMoving').click(); document.getElementById('altRight').click(); true`);
-  r = await run(7000);
-  if (!r.lit.includes('LC3 LE3 RC4')) problems.push(`moving, alto right never lit: LC3 LE3 RC4 (saw ${r.lit.join(' | ')}; ${r.status})`);
-  // Two voices left: the Fassung buttons are off, from "dir" the left hand holds at most two buttons
+  if (await w.ev(`!!document.getElementById('varPlain')`)) problems.push('the Fassung switch is still there');
+  // Two voices left: from "dir" the left hand holds at most two buttons
   await w.ev(`document.getElementById('leftTwo').click(); true`);
-  if (!(await w.ev(`document.getElementById('varPlain').disabled`))) problems.push('Fassung still selectable with two voices left');
   r = await run(4000);
   if (!r.lit.includes('LC3 LE3 RE4')) problems.push(`two voices left never lit: LC3 LE3 RE4 (saw ${r.lit.join(' | ')}; ${r.status})`);
   if (r.lit.some(l => l.split(' ').filter(x => x[0] === 'L').length > 2)) problems.push('left hand plays more than two voices');
@@ -550,14 +547,6 @@ async function runBackingCase(w) {
       mond: [...document.querySelectorAll('.score .ev')].find(g => g.textContent === 'Mond,').getBoundingClientRect().x }; })()`);
   if (pickup.first !== 'Gu- ter') problems.push(`score starts with ${pickup.first}`);
   if (Math.abs(pickup.chord - pickup.mond) > 12) problems.push(`first chord symbol not at "Mond" (${pickup.chord} vs ${pickup.mond})`);
-  // "Nur links": one staff (bass clef), only left-hand buttons light; back to both hands
-  await w.ev(`document.getElementById('showLeft').click(); true`);
-  const clefs = await w.ev(`[...document.querySelectorAll('.score > text.glyph')].map(t => t.textContent).filter(t => t === '𝄞' || t === '𝄢').join('')`);
-  if (clefs.includes('𝄞') || !clefs.includes('𝄢')) problems.push(`Nur links shows clefs ${clefs}`);
-  r = await run(3000);
-  if (r.lit.some(l => l.includes('R'))) problems.push(`Nur links lights right-hand buttons (${r.lit.join(' | ')})`);
-  if (!r.lit.some(l => l.includes('L'))) problems.push('Nur links lights nothing');
-  await w.ev(`const p = document.getElementById('play'); if (p.classList.contains('listening')) p.click(); document.getElementById('showBoth').click(); true`);
   // 0 bpm: tapping "Gu-" sounds one note and holds it; each Next goes one onset further
   await w.ev(`document.getElementById('leftOne').click(); const sop = document.querySelector('[data-voice=S]'); if (!sop.checked) sop.click(); const t = document.getElementById('tempo'); t.value = 0; t.dispatchEvent(new Event('change')); true`);
   const step = await w.ev(`(async () => {
@@ -583,6 +572,46 @@ async function runBackingCase(w) {
 // Printing (on the chorale page, on a phone-sized window): the print sheet has the title and one SVG per
 // system in the wide layout (3 bars per line: 6 systems, 800 wide), the on-screen score is back to the
 // phone layout, and window.print was called
+// Start menu (index.html): a tile for each page, every link resolves, the version label is there
+async function runMenuCase(w) {
+  const problems = [];
+  const links = await w.ev(`[...document.querySelectorAll('.tile')].map(a => a.getAttribute('href')).join(' ')`);
+  if (links !== 'listen.html song.html duet.html backing.html') problems.push(`menu links: ${links}`);
+  const ok = await w.ev(`Promise.all([...document.querySelectorAll('.tile')].map(a => fetch(a.href).then(r => r.ok))).then(a => a.every(Boolean))`);
+  if (!ok) problems.push('a menu link does not load');
+  if (!/^V\d+$/.test(await w.ev(`document.getElementById('version').textContent`))) problems.push('no version label');
+  if (w.errors.length) problems.push(`page error: ${w.errors[0]}`);
+  return problems.join('; ') || null;
+}
+
+// Tap-to-zoom on the chorale page, on a phone-sized window: a tap on the right half of the keyboard fills the screen with the right
+// hand's side only, playing still lights its buttons there, a second tap goes back
+async function runZoomCase(w) {
+  const problems = [];
+  await w.cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 800, deviceScaleFactor: 1, mobile: true });   // a phone
+  await sleep(300);
+  const state = () => w.ev(`(() => { const svg = document.getElementById('maccann'), card = svg.closest('.card'), r = svg.getBoundingClientRect();
+    return { zoomed: card.classList.contains('zoomed'), view: svg.getAttribute('viewBox'), key: svg.querySelector('.btn circle').getBoundingClientRect().width, iw: innerWidth, ih: innerHeight }; })()`);
+  const before = await state();
+  await w.ev(`(() => { const svg = document.getElementById('maccann'), r = svg.getBoundingClientRect();
+    svg.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: r.left + r.width * 0.8, clientY: r.top + r.height / 2 })); return true; })()`);
+  const z = await state();
+  if (!z.zoomed || !z.view.startsWith('568 ')) problems.push(`not zoomed to the right hand: ${JSON.stringify(z)}`);
+  if (!(z.key > before.key * 1.3)) problems.push(`keys not bigger when zoomed (${before.key} → ${z.key} px, window ${z.iw}×${z.ih})`);
+  const lit = await w.ev(`(async () => {
+    [...document.querySelectorAll('.score .ev')].find(g => g.textContent === 'Mond,').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 1500));
+    return document.querySelectorAll('.maccann .btn.on').length;
+  })()`);
+  if (!lit) problems.push('no lit buttons while zoomed');
+  await w.ev(`document.getElementById('maccann').dispatchEvent(new MouseEvent('click', { bubbles: true })); true`);
+  const after = await state();
+  if (after.zoomed || after.view !== before.view) problems.push(`not back after a second tap: ${JSON.stringify(after)}`);
+  await w.cdp('Emulation.clearDeviceMetricsOverride');
+  if (w.errors.length) problems.push(`page error: ${w.errors[0]}`);
+  return problems.join('; ') || null;
+}
+
 async function runPrintCase(w) {
   const r = await w.ev(`(async () => {
     let printed = 0; window.print = () => { printed++; };

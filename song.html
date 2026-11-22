@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V23">
+<link rel="stylesheet" href="concertina.css?v=V24">
 <style>
   a.back { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
   .controls input[type=range] { width: 9em; accent-color: var(--accent); }
@@ -60,7 +60,7 @@
 <main>
   <header>
     <div>
-      <a class="back" href="index.html">← Note Listener</a> · <a class="back" href="duet.html">Duett-Fassung</a>
+      <a class="back" href="index.html">← Menü</a> · <a class="back" href="duet.html">Duett-Fassung</a>
       <h1 id="title">Hänschen klein</h1>
     </div>
     <div class="controls">
@@ -82,14 +82,14 @@
       <button class="start play-mini" data-play>▶ Play</button>
     </div>
     <p class="sub">The button to press is filled, the next one is dashed. Click a note in the music to start from there.</p>
-    <svg class="maccann" id="maccann" viewBox="0 0 1000 520" aria-label="Maccann duet keyboard"></svg>
+    <svg class="maccann" id="maccann" data-zoom viewBox="20 6 964 514" aria-label="Maccann duet keyboard"></svg>
   </section>
 
   <div class="status" id="status"></div>
 </main>
 
-<script src="concertina.js?v=V23"></script>
-<script src="pwa.js?v=V23"></script>
+<script src="concertina.js?v=V24"></script>
+<script src="pwa.js?v=V24"></script>
 <script>
 (() => {
   const { SVG_NS, ACC, spell, label, toMidi, buildMaccann, sampleFor, loopCache, playNote } = Concertina;

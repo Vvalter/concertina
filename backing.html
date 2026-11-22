@@ -11,10 +11,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V23">
+<link rel="stylesheet" href="concertina.css?v=V24">
 <style>
   a.back { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
-  .intro { color: var(--muted); font-size: 0.9rem; margin: 0; line-height: 1.45; }
   .controls input[type=range] { width: 9em; accent-color: var(--accent); }
   .tempo-value { font-variant-numeric: tabular-nums; min-width: 4.5em; }
   .voices { display: flex; gap: 4px 12px; flex-wrap: wrap; align-items: center; }
@@ -56,6 +55,7 @@
   /* Phone: Play and Next sit side by side at the end of the "now" line */
   .mini-btns { display: none; margin-left: auto; gap: 6px; align-self: center; }
   @media (max-width: 560px) { .mini-btns { display: flex; } .keys .now-line { column-gap: 14px; } }
+  .card.zoomed .mini-btns { display: flex; }
   button.start.play-mini { padding: 6px 14px; }
   button.start.next-mini { padding: 6px 12px; }
   button.start.next-btn { background: var(--panel, #fff); color: var(--accent); border: 1px solid var(--accent); }
@@ -70,23 +70,13 @@
 <main>
   <header>
     <div>
-      <a class="back" href="index.html">← Note Listener</a>
+      <a class="back" href="index.html">← Menü</a>
       <h1>Guter Mond, du gehst so stille – vierstimmiger Choral</h1>
     </div>
     <div class="controls">
-      <div class="seg" role="group" aria-label="Noten zeigen">
-        <button id="showBoth" aria-pressed="true" title="Noten und Knöpfe für beide Hände">Beide Hände</button>
-        <button id="showLeft" aria-pressed="false" title="Nur die Noten und Knöpfe der linken Hand (zum Üben einer Seite)">Nur links</button>
-        <button id="showRight" aria-pressed="false" title="Nur die Noten und Knöpfe der rechten Hand (zum Üben einer Seite)">Nur rechts</button>
-      </div>
-      <div class="seg" role="group" aria-label="Fassung">
-        <button id="varPlain" aria-pressed="true" title="Alle Stimmen gehen zusammen, Note gegen Note">Schlicht</button>
-        <button id="varMoving" aria-pressed="false" title="Gleiche Harmonien, Alt, Tenor und Bass mit Durchgangsachteln">Mit Durchgängen</button>
-        <button id="varGrip" aria-pressed="false" title="Gleiche Harmonien, Griffe für die linke Hand optimiert">Griffig</button>
-      </div>
       <div class="seg" role="group" aria-label="Linke Hand">
         <button id="leftOne" aria-pressed="true" title="Rechte Hand die Melodie, linke Hand nur den Bass">Links einstimmig</button>
-        <button id="leftTwo" aria-pressed="false" title="Links eine Oberstimme und der Bass, griffig gesetzt (in jeder Fassung gleich)">Links zweistimmig</button>
+        <button id="leftTwo" aria-pressed="false" title="Links eine Oberstimme und der Bass">Links zweistimmig</button>
         <button id="altLeft" aria-pressed="false" title="Rechte Hand nur die Melodie, links die dreistimmige Begleitung">Links dreistimmig</button>
         <button id="altRight" aria-pressed="false" title="Der Alt geht in die rechte Hand, wo sie den Ton hat">Alt rechts</button>
       </div>
@@ -104,23 +94,6 @@
     </div>
   </header>
 
-  <p class="intro">
-    Vierstimmiger Choralsatz in C-Dur: die rechte Hand spielt nur die Melodie (beginnt mit g'), darunter eine
-    dreistimmige Begleitung – Alt, Tenor und Bass – im Choralstil, alle Stimmen gehen zusammen.
-    <b>Links einstimmig</b> (Standard): die linke Hand spielt nur den Bass. <b>Links zweistimmig</b>: eine
-    Oberstimme und der Bass, griffig gesetzt (in jeder Fassung gleich). <b>Links dreistimmig</b>: alle drei
-    Begleitstimmen in der linken Hand. <b>Alt rechts</b>: der Alt geht in die
-    rechte Hand, wo sie den Ton hat. <b>Schlicht</b>: ein Akkord pro Schlag; <b>Mit Durchgängen</b>: dieselben
-    Harmonien, die Begleitstimmen füllen mit Achteln; <b>Griffig</b>: dieselben Harmonien, die Dreiklänge der linken
-    Hand so gewählt, dass sie auf dem Edeophone gut liegen – möglichst jeder Finger in seiner Reihe, kaum zwei Knöpfe
-    mit Abstand in derselben Reihe, gehaltene Töne wo möglich. Unter „Es klingt“ wählst du, welche Stimmen die Seite
-   spielt. Jede Notenzeile zeigt eine Hand; in der unteren haben Alt und Tenor den Hals nach oben, der Bass nach unten.
-    <b>Nur links / Nur rechts</b> zeigt nur die Noten und Knöpfe einer Hand, zum Üben einer Seite (was klingt,
-    stellst du unter „Es klingt“ ein). Kein Vorspiel: die Melodie beginnt mit dem Auftakt „Gu-ter“, die Begleitung setzt auf „Mond“ ein.
-    <b>Next »</b> springt zur nächsten Note; bei <b>0 bpm</b> spielt nichts von selbst, jeder Druck auf Next lässt den
-    nächsten Griff klingen, bis du weiterdrückst.
-  </p>
-
   <section class="card">
     <svg class="score" id="score" aria-label="Noten"></svg>
   </section>
@@ -136,14 +109,14 @@
       </div>
     </div>
     <p class="sub">Gefüllt: jetzt drücken · gestrichelt: als Nächstes. Auf eine Note tippen, um dort anzufangen.</p>
-    <svg class="maccann" id="maccann" viewBox="0 0 1000 520" aria-label="Maccann duet keyboard"></svg>
+    <svg class="maccann" id="maccann" data-zoom viewBox="20 6 964 514" aria-label="Maccann duet keyboard"></svg>
   </section>
 
   <div class="status" id="status"></div>
 </main>
 
-<script src="concertina.js?v=V23"></script>
-<script src="pwa.js?v=V23"></script>
+<script src="concertina.js?v=V24"></script>
+<script src="pwa.js?v=V24"></script>
 <script>
 (() => {
   const { SVG_NS, ACC, label, toMidi, buildMaccann, sampleFor, loopCache, playNote, spell } = Concertina;
@@ -172,50 +145,10 @@
     'E4:1:dir E4:1:nicht D4:0.5:fol- C4:0.5 D4:0.5:gen E4:0.5',
     'C4:2:kann. r:2',
   ];
-  // Alto, tenor, bass per bar. The three phrases "Mond, du gehst so" (P1), "stil-le, durch die" (P2) and
-  // "A-bend-wol-ken" (P3) come back three times with the same setting.
-  const REST = ['r:4', 'r:4', 'r:4'];   // the pickup bar
-  const PLAIN = (() => {
-    const P1 = ['C4:4', 'G3:2 A3:2', 'C3:1 E3:2 F3:1'];
-    const P2 = ['C4:1 D4:3', 'A3:1 B3:3', 'D3:1 G3:3'];
-    const P3 = ['C4:2 B3:2', 'G3:1 E3:1 G3:1 F3:1', 'C3:2 D3:2'];
-    return [
-      REST,
-      P1, P2, P3,
-      ['C4:3 B3:1', 'E3:2 G3:2', 'C3:2 E3:1 D3:1'],
-      P1, P2, P3,
-      ['C4:3 B3:1', 'E3:2 A3:1 G3:1', 'C3:2 E3:1 D3:1'],
-      ['C4:1 B3:1 D4:2', 'A3:1 G3:1 B3:2', 'D3:2 G3:2'],
-      ['E4:1 C4:2 E4:1', 'G3:2 A3:1 E3:1', 'C3:1 E3:2 C3:1'],
-      ['C4:1 F4:1 E4:1 D4:1', 'A3:2 C4:1 B3:1', 'F3:1 D3:1 C3:1 G3:1'],
-      ['C4:1 B3:1 D4:2', 'G3:2 B3:2', 'C3:1 D3:1 G3:2'],
-      P1, P2, P3,
-      ['C4:4', 'E3:4', 'C3:4'],
-    ];
-  })();
-  // The same harmonies with passing and neighbour eighths (off the beat, so the chords stay)
-  const MOVING = (() => {
-    const P1 = ['C4:1 D4:0.5 C4:0.5 C4:2', 'G3:1 F3:0.5 G3:0.5 A3:2', 'C3:0.5 D3:0.5 E3:2 F3:1'];
-    const P2 = ['C4:1 D4:3', 'A3:1 B3:1 C4:0.5 B3:0.5 B3:1', 'D3:1 G3:1 F3:0.5 D3:0.5 G3:1'];
-    const P3 = ['C4:2 B3:2', 'G3:1 E3:1 G3:1 F3:1', 'C3:0.5 E3:0.5 C3:1 D3:2'];
-    return [
-      REST,
-      P1, P2, P3,
-      ['C4:2 C4:0.5 D4:0.5 B3:1', 'E3:1 F3:0.5 G3:0.5 G3:2', 'C3:1.5 D3:0.5 E3:1 D3:1'],
-      P1, P2, P3,
-      ['C4:3 B3:1', 'E3:1 F3:0.5 G3:0.5 A3:1 G3:1', 'C3:1.5 D3:0.5 E3:1 D3:1'],
-      ['C4:1 B3:1 D4:2', 'A3:1 G3:0.5 A3:0.5 B3:2', 'D3:2 G3:2'],
-      ['E4:1.5 D4:0.5 C4:1 E4:1', 'G3:2 A3:1 E3:1', 'C3:0.5 D3:0.5 E3:1 E3:0.5 D3:0.5 C3:1'],
-      ['C4:0.5 D4:0.5 F4:1 E4:1 D4:1', 'A3:2 C4:1 B3:1', 'F3:0.5 E3:0.5 D3:1 C3:1 G3:1'],
-      ['C4:1 B3:1 B3:0.5 C4:0.5 D4:1', 'G3:2 B3:2', 'C3:1 D3:1 G3:2'],
-      P1, P2, P3,
-      ['C4:4', 'E3:4', 'C3:4'],
-    ];
-  })();
-  // Optimised for the left hand's grips (alto, tenor and bass all in the left hand): generated by
-  // tools/grips.mjs from HARMONY and the Edeophone layout. Few grips with two buttons in one column with a
-  // button between them (20 beats in PLAIN, 1 here), within four columns, little vertical stretch, held
-  // notes where possible; the alto may go down to G3. Re-run the tool after changing HARMONY or SOPRANO.
+  // Alto, tenor and bass per bar, voiced for the left hand's grips: generated by tools/grips.mjs from
+  // HARMONY and the Edeophone layout. Few grips with two buttons in one column with a button between them,
+  // within four columns, little vertical stretch, held notes where possible; the alto may go down to G3.
+  // Re-run the tool after changing HARMONY or SOPRANO.
   const GRIFFIG = [
     ['r:4', 'r:4', 'r:4'],
     ['E4:1 C4:3', 'G3:2 A3:2', 'C3:1 E3:2 F3:1'],
@@ -236,8 +169,7 @@
     ['G3:4', 'E3:4', 'C3:4'],
   ];
   // Two voices in the left hand, an upper line and the bass, under the melody; the chord's third is in one
-  // of the three voices. Generated by VOICES=2 node tools/grips.mjs (the same grip rules as GRIFFIG), so it
-  // is the same in every Fassung.
+  // of the three voices. Generated by VOICES=2 node tools/grips.mjs (the same grip rules as GRIFFIG).
   const ZWEI = [
     ['r:4', 'r:4'],
     ['G3:2 C4:1 A3:1', 'C3:1 E3:2 F3:1'],
@@ -257,7 +189,6 @@
     ['E3:2 B3:2', 'C3:2 D3:2'],
     ['E3:4', 'C3:4'],
   ];
-  const VARIANTS = { plain: PLAIN, moving: MOVING, griffig: GRIFFIG };
   // Chord symbols (written in C; shown in C♯), one per beat ('-' = none) or one per bar
   const HARMONY = [
     '-', 'C C/E Am/E F', 'Dm7 G - G7', 'C - G/D G7/D', 'C - C/E G/D',
@@ -279,14 +210,13 @@
   // ---------- settings ----------
   const store = (k, v) => { try { localStorage.setItem('noteListener.choral.' + k, JSON.stringify(v)); } catch { } };
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem('noteListener.choral.' + k)); return v ?? d; } catch { return d; } };
-  let shown = load('show', 'both');   // which hand's notes and buttons are shown
-  let variant = load('variant', 'plain'), altHand = load('hand', 'one');   // one: left hand plays only the bass
+  let altHand = load('hand', 'one');   // one: left hand plays only the bass
   const audible = load('voices', { S: false, A: true, T: true, B: true });
 
   let events = [], onsets = [];   // { voice, hand, bar, beat, beats, notes (spelling), midis, syllable }
   function buildEvents() {
     events = [];
-    const bars = altHand === 'two' ? ZWEI.map(([t, b]) => ['r:4', t, b]) : VARIANTS[variant];
+    const bars = altHand === 'two' ? ZWEI.map(([t, b]) => ['r:4', t, b]) : GRIFFIG;
     SOPRANO.forEach((s, bar) => {
       const [a, t, b] = bars[bar];
       for (const [voice, line] of [['S', s], ['A', a], ['T', t], ['B', b]]) {
@@ -333,10 +263,7 @@
     for (const e of events) e.el = null;
     const perLine = score.clientWidth && score.clientWidth < 560 ? 2 : 3;
     const W = perLine === 2 ? 420 : 800;
-    // One hand only ("Nur links/rechts"): one staff per system, the lyrics under it
-    const both = shown === 'both', seen = hand => both || shown === hand;
-    const SYS_H = both ? 270 : 170, TREBLE_TOP = 62, BASS_TOP = both ? TREBLE_TOP + 4 * S + 112 : TREBLE_TOP;
-    for (const b of document.querySelectorAll('[data-print]')) b.dataset.print = SYS_H;
+    const SYS_H = 270, TREBLE_TOP = 62, BASS_TOP = TREBLE_TOP + 4 * S + 112;
     const lines = Math.ceil(totalBars / perLine);
     score.setAttribute('viewBox', `0 0 ${W} ${lines * SYS_H + 10}`);
     for (let l = 0; l < lines; l++) {
@@ -344,22 +271,16 @@
       const LEAD = l === 0 ? 62 : 40;
       const barW = (W - 10 - LEAD) / perLine;
       const trebleBottom = y0 + TREBLE_TOP + 4 * S, bassBottom = y0 + BASS_TOP + 4 * S;
-      const staves = [seen('right') && trebleBottom, seen('left') && bassBottom].filter(Boolean);
-      const topY = staves[0] - 4 * S, lowY = staves.at(-1);
-      for (const bottom of staves) {
+      for (const bottom of [trebleBottom, bassBottom]) {
         for (let i = 0; i < 5; i++) svgEl('line', { class: 'l', x1: 8, x2: W - 10, y1: bottom - i * S, y2: bottom - i * S });
       }
-      svgEl('line', { class: 'bar', x1: 8, x2: 8, y1: topY, y2: lowY });
-      if (seen('right')) {
-        svgEl('text', { class: 'glyph', x: 12, y: trebleBottom - S, 'font-size': 4 * S }, score, '𝄞');
-        svgEl('text', { class: 'hand', x: 12, y: trebleBottom - 4 * S - 22 }, score, 'R');
-      }
-      if (seen('left')) {
-        svgEl('text', { class: 'glyph', x: 12, y: bassBottom - S * 2 / 3, 'font-size': 4 * S }, score, '𝄢');
-        svgEl('text', { class: 'hand', x: 12, y: bassBottom - 4 * S - 22 }, score, 'L');
-      }
+      svgEl('line', { class: 'bar', x1: 8, x2: 8, y1: trebleBottom - 4 * S, y2: bassBottom });
+      svgEl('text', { class: 'glyph', x: 12, y: trebleBottom - S, 'font-size': 4 * S }, score, '𝄞');
+      svgEl('text', { class: 'glyph', x: 12, y: bassBottom - S * 2 / 3, 'font-size': 4 * S }, score, '𝄢');
+      svgEl('text', { class: 'hand', x: 12, y: trebleBottom - 4 * S - 22 }, score, 'R');
+      svgEl('text', { class: 'hand', x: 12, y: bassBottom - 4 * S - 22 }, score, 'L');
       if (l === 0) {
-        for (const bottom of staves) {
+        for (const bottom of [trebleBottom, bassBottom]) {
           svgEl('text', { class: 'meter', x: 50, y: bottom - 2 * S - 2 }, score, '4');
           svgEl('text', { class: 'meter', x: 50, y: bottom - 2 }, score, '4');
         }
@@ -368,7 +289,7 @@
         const bar = l * perLine + i;
         if (bar >= totalBars) break;
         const x0 = LEAD + i * barW, last = bar === totalBars - 1;
-        svgEl('line', { class: 'bar', x1: x0 + barW, x2: x0 + barW, y1: topY, y2: lowY, 'stroke-width': last ? 3 : 1.4 });
+        svgEl('line', { class: 'bar', x1: x0 + barW, x2: x0 + barW, y1: trebleBottom - 4 * S, y2: bassBottom, 'stroke-width': last ? 3 : 1.4 });
         const times = onsets.filter(b => b >= bar * BEATS && b < (bar + 1) * BEATS);
         const room = times.map((b, k) => Math.sqrt((times[k + 1] ?? (bar + 1) * BEATS) - b));
         const unit = (barW - 32) / room.reduce((a, r) => a + r, 0);
@@ -376,16 +297,11 @@
         let x = x0 + 22;
         times.forEach((b, k) => { xOf.set(b, x); x += room[k] * unit; });
         for (const h of harmony.filter(h => Math.floor(h.beat / BEATS) === bar)) {
-          h.el = svgEl('text', { class: 'chord-sym', x: (xOf.get(h.beat) ?? x0 + 22) - 5, y: topY - 18 }, score, h.name);
+          h.el = svgEl('text', { class: 'chord-sym', x: (xOf.get(h.beat) ?? x0 + 22) - 5, y: trebleBottom - 4 * S - 18 }, score, h.name);
         }
         for (const e of events.filter(e => e.bar === bar)) {
           // Each staff shows its hand: top the right hand, bottom the left
-          if (seen(e.hand)) drawEvent(e, xOf.get(e.beat), e.hand === 'right' ? trebleBottom : bassBottom, e.hand === 'right');
-          else if (e.syllable) {   // the hidden melody keeps its lyrics (tap to start there)
-            e.el = svgEl('g', { class: 'ev' });
-            e.el.addEventListener('click', () => play(e.beat));
-            svgEl('text', { class: 'lyric', x: xOf.get(e.beat), y: lowY + 5 * S }, e.el, e.syllable);
-          }
+          drawEvent(e, xOf.get(e.beat), e.hand === 'right' ? trebleBottom : bassBottom, e.hand === 'right');
         }
       }
     }
@@ -456,7 +372,6 @@
     for (const e of now) for (const m of e.midis) on.add(buttonFor(e.hand, m));
     for (const e of next) for (const m of e.midis) soon.add(buttonFor(e.hand, m));
     for (const b of buttons) {
-      if (shown !== 'both' && b.hand !== shown) { on.delete(b); soon.delete(b); }
       b.g.classList.toggle('on', on.has(b));
       b.g.classList.toggle('fits', soon.has(b) && !on.has(b));
     }
@@ -676,54 +591,35 @@
     else if (playing) play(Math.floor(nowBeat));
   });
 
-  // Fassung and alto hand rebuild the score; voice checkboxes only change what sounds
-  function setChoice(kind, value) {
+  // The left hand's part rebuilds the score; voice checkboxes only change what sounds
+  function setHand(value) {
     if (playing || held.size) stop();
-    if (kind === 'variant') variant = value; else altHand = value;
-    store(kind === 'variant' ? kind : 'hand', value);
-    $('varPlain').setAttribute('aria-pressed', String(variant === 'plain'));
-    $('varMoving').setAttribute('aria-pressed', String(variant === 'moving'));
-    $('varGrip').setAttribute('aria-pressed', String(variant === 'griffig'));
+    altHand = value;
+    store('hand', value);
     $('altRight').setAttribute('aria-pressed', String(altHand === 'right'));
     $('altLeft').setAttribute('aria-pressed', String(altHand === 'left'));
     $('leftOne').setAttribute('aria-pressed', String(altHand === 'one'));
     $('leftTwo').setAttribute('aria-pressed', String(altHand === 'two'));
-    // Two voices left: one griffig setting, the same in every Fassung
-    for (const id of ['varPlain', 'varMoving', 'varGrip']) $(id).disabled = altHand === 'two';
     buildEvents();
     nowKey = '';
     drawScore();
   }
-  $('varPlain').onclick = () => setChoice('variant', 'plain');
-  $('varMoving').onclick = () => setChoice('variant', 'moving');
-  $('varGrip').onclick = () => setChoice('variant', 'griffig');
-  $('altRight').onclick = () => setChoice('altHand', 'right');
-  $('altLeft').onclick = () => setChoice('altHand', 'left');
-  $('leftOne').onclick = () => setChoice('altHand', 'one');
-  function setShown(value) {
-    shown = value;
-    store('show', value);
-    for (const [id, v] of [['showBoth', 'both'], ['showLeft', 'left'], ['showRight', 'right']]) $(id).setAttribute('aria-pressed', String(shown === v));
-    nowKey = '';
-    drawScore();
-  }
-  $('showBoth').onclick = () => setShown('both');
-  $('showLeft').onclick = () => setShown('left');
-  $('showRight').onclick = () => setShown('right');
-  $('leftTwo').onclick = () => setChoice('altHand', 'two');
+  $('altRight').onclick = () => setHand('right');
+  $('altLeft').onclick = () => setHand('left');
+  $('leftOne').onclick = () => setHand('one');
+  $('leftTwo').onclick = () => setHand('two');
   for (const box of document.querySelectorAll('[data-voice]')) {
     const v = box.dataset.voice;
     box.checked = !!audible[v];
     box.onchange = () => { audible[v] = box.checked; store('voices', audible); setVoiceGains(); markMuted(); };
   }
 
-  setChoice('variant', variant);
-  setShown(shown);
+  setHand(altHand);
   addEventListener('resize', () => {
     const perLine = score.clientWidth < 560 ? 2 : 3;
     if (perLine !== (score.viewBox.baseVal.width === 420 ? 2 : 3)) drawScore();
   });
-  window.__choral = { VARIANTS, SOPRANO, ZWEI };   // for tests
+  window.__choral = { GRIFFIG, SOPRANO, ZWEI };   // for tests
 })();
 </script>
 </body>
