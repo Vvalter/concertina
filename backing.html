@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V24">
+<link rel="stylesheet" href="concertina.css?v=V25">
 <style>
   a.back { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
   .controls input[type=range] { width: 9em; accent-color: var(--accent); }
@@ -115,11 +115,11 @@
   <div class="status" id="status"></div>
 </main>
 
-<script src="concertina.js?v=V24"></script>
-<script src="pwa.js?v=V24"></script>
+<script src="concertina.js?v=V25"></script>
+<script src="pwa.js?v=V25"></script>
 <script>
 (() => {
-  const { SVG_NS, ACC, label, toMidi, buildMaccann, sampleFor, loopCache, playNote, spell } = Concertina;
+  const { SVG_NS, ACC, label, toMidi, buildMaccann, sampleFor, loopCache, playNote, retimeNote, onTempoDrag, spell } = Concertina;
   const $ = id => document.getElementById(id);
 
   // ---------- the chorale ----------
@@ -397,7 +397,8 @@
   };
 
   // ---------- playback ----------
-  let ctx = null, out = null, getLoop = null, sources = [], rafId = 0, timeline = null, voiceGain = null;
+  let ctx = null, out = null, getLoop = null, rafId = 0, timeline = null, voiceGain = null;
+  let scheduled = [], bellows = null;   // scheduled: { e, nodes } per note event
   const tempoInput = $('tempo');
   const LEVEL = { S: 1, A: 0.75, T: 0.75, B: 0.95 };
 
@@ -422,10 +423,11 @@
   }
 
   // The bellows: a gentle swell over each two-bar phrase, a short dip at each reversal, a fade at the end
-  function scheduleBellows(bellows, fromBeat, tl) {
+  // live: the tempo changed while playing, so carry on from the current level instead of starting from 0
+  function scheduleBellows(bellows, fromBeat, tl, live = false) {
     const g = bellows.gain, t0 = tl.time(fromBeat);
-    g.cancelScheduledValues(0);
-    g.setValueAtTime(0, t0 - 0.05);
+    if (live) { const v = g.value; g.cancelScheduledValues(t0); g.setValueAtTime(v, t0); }
+    else { g.cancelScheduledValues(0); g.setValueAtTime(0, t0 - 0.05); }
     for (let beat = fromBeat; beat <= totalBeats; beat += 0.125) {
       const bar = Math.min(totalBars - 1, Math.floor(beat / BEATS));
       const f = (beat - bar * BEATS) / BEATS;
@@ -470,6 +472,23 @@
     return g;
   }
 
+  // A note's start and end on the current timeline: legato, with a breath between notes
+  function noteSpan(e) {
+    const t = timeline.time(e.beat), full = timeline.time(e.beat + e.beats) - t;
+    return [t, t + full - Math.min(0.05, full * 0.1)];
+  }
+  // The tempo changed while playing: a new timeline from the current beat, every note moved onto it
+  function retempo() {
+    if (!playing || !timeline || !bellows) return;
+    const now = ctx.currentTime, beat = timeline.beat(now);
+    timeline = makeTimeline(beat, now);
+    for (const n of scheduled) {
+      const [t, end] = noteSpan(n.e);
+      n.nodes = n.nodes.map(x => retimeNote(ctx, x, t, end));
+    }
+    scheduleBellows(bellows, beat, timeline, true);
+  }
+
   async function play(fromBeat = START) {
     if (Number(tempoInput.value) === 0) return stepTo(onsetFrom(fromBeat));   // 0 bpm: one grip at a time
     stop();
@@ -489,18 +508,16 @@
     if (!playing) return;
     $('status').textContent = '';
 
-    const bellows = ctx.createGain();
+    bellows = ctx.createGain();
     bellows.connect(out);
     voiceGain = makeVoiceGains(bellows);
     timeline = makeTimeline(fromBeat, ctx.currentTime + 0.12);
     scheduleBellows(bellows, fromBeat, timeline);
 
-    todo.forEach((e, k) => {
-      const t = timeline.time(e.beat), full = timeline.time(e.beat + e.beats) - t;
-      const end = t + full - Math.min(0.05, full * 0.1);   // legato, with a breath between notes
-      sounds[k].forEach(s => sources.push(playNote(ctx, voiceGain[e.voice], s.buffer, s.rate, t, end, 1)));
+    scheduled = todo.map((e, k) => {
+      const [t, end] = noteSpan(e);
+      return { e, nodes: sounds[k].map(s => playNote(ctx, voiceGain[e.voice], s.buffer, s.rate, t, end, 1)) };
     });
-    sources.push({ src: { stop() {} }, gain: bellows });
 
     const tick = () => {
       if (!playing) return;
@@ -560,12 +577,15 @@
     stepped = false;
     playing = false;
     cancelAnimationFrame(rafId);
-    for (const { src, gain } of sources) {
+    const all = scheduled.flatMap(n => n.nodes);
+    if (bellows) all.push({ src: { stop() {} }, gain: bellows });
+    for (const { src, gain } of all) {
       gain.gain.cancelScheduledValues(ctx.currentTime);
       gain.gain.setTargetAtTime(0, ctx.currentTime, 0.03);
       try { src.stop(ctx.currentTime + 0.15); } catch { /* not started */ }
     }
-    sources = [];
+    scheduled = [];
+    bellows = null;
     voiceGain = null;
     setPlayButtons(false);
   }
@@ -585,11 +605,14 @@
   tempoInput.value = load('tempo', 66);
   showTempo();
   tempoInput.addEventListener('input', showTempo);
-  tempoInput.addEventListener('change', () => {
-    store('tempo', Number(tempoInput.value));
-    if (playing && Number(tempoInput.value) === 0) stop();
-    else if (playing) play(Math.floor(nowBeat));
-  });
+  // Playing follows the slider while it moves; 0 bpm stops (step mode)
+  const tempoChanged = () => {
+    if (!playing) return;
+    if (Number(tempoInput.value) === 0) stop(); else retempo();
+  };
+  onTempoDrag(tempoInput, tempoChanged);
+  window.__beatNow = () => (playing && timeline ? timeline.beat(ctx.currentTime) : null);   // for tests: the beat being played
+  tempoInput.addEventListener('change', () => { store('tempo', Number(tempoInput.value)); tempoChanged(); });
 
   // The left hand's part rebuilds the score; voice checkboxes only change what sounds
   function setHand(value) {

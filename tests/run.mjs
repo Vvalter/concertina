@@ -125,6 +125,8 @@ cases.push({ group: 'song', name: 'Guter Mond – Choral', settings: SETTINGS, b
 cases.push({ group: 'song', name: 'Drucken', settings: SETTINGS, backing: true, print: true });
 cases.push({ group: 'song', name: 'Tastatur vergrößern', settings: SETTINGS, backing: true, zoom: true });
 cases.push({ group: 'song', name: 'Menü', settings: SETTINGS, menu: true });
+for (const page of ['song.html', 'duet.html', 'backing.html'])
+  cases.push({ group: 'song', name: `Tempo live ${page}`, settings: SETTINGS, tempoPage: page });
 
 const selected = cases.filter(c => !filters.length || filters.some(w => c.group.includes(w) || c.name.includes(w)));
 
@@ -230,6 +232,7 @@ async function runCase(w, c) {
   if (c.duet) await w.ev(`localStorage.setItem('noteListener.duetTempo', '160')`);
   if (c.duet) await w.ev(`localStorage.setItem('noteListener.duetVersion', '${c.simple ? 'simple' : 'full'}')`);
   if (c.backing) await w.ev(`localStorage.setItem('noteListener.choral.tempo', '112'); ['hand', 'voices'].forEach(k => localStorage.removeItem('noteListener.choral.' + k))`);
+  if (c.tempoPage) { await w.open(c.tempoPage); w.errors.length = 0; return runTempoCase(w); }
   await w.open(c.song ? 'song.html' : c.duet ? 'duet.html' : c.backing ? 'backing.html' : c.menu ? 'index.html' : 'listen.html');
   w.errors.length = 0;
   if (c.play) return runPlayCase(w);
@@ -572,7 +575,38 @@ async function runBackingCase(w) {
 // Printing (on the chorale page, on a phone-sized window): the print sheet has the title and one SVG per
 // system in the wide layout (3 bars per line: 6 systems, 800 wide), the on-screen score is back to the
 // phone layout, and window.print was called
-// Start menu (index.html): a tile for each page, every link resolves, the version label is there
+// Tempo while playing: start slow, drag the slider (input events only, no change) to fast; playback goes on
+// from where it was, now faster, and keeps sounding
+async function runTempoCase(w) {
+  const problems = [];
+  const r = await w.ev(`(async () => {
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    const t = document.getElementById('tempo'), loud = () => { if (!window.__out) return 1; const b = new Float32Array(2048); window.__out.getFloatTimeDomainData(b); let e = 0; for (const v of b) e += v * v; return Math.sqrt(e / b.length); };
+    t.value = 40; t.dispatchEvent(new Event('input')); t.dispatchEvent(new Event('change'));
+    document.getElementById('play').click();
+    await wait(1500);
+    const a0 = window.__beatNow(), s0 = performance.now(); await wait(1200);
+    const a1 = window.__beatNow(), s1 = performance.now();
+    for (const v of [60, 80, 100, 120]) { t.value = v; t.dispatchEvent(new Event('input')); await wait(30); }
+    await wait(100);
+    let sound = 0; for (let i = 0; i < 12; i++) { sound = Math.max(sound, loud()); await wait(50); }   // the duet's umpa has gaps
+    const b0 = window.__beatNow(), u0 = performance.now(); await wait(1200);
+    const b1 = window.__beatNow(), u1 = performance.now();
+    const playing = document.getElementById('play').classList.contains('listening');
+    document.getElementById('play').click();
+    return { slow: (a1 - a0) / (s1 - s0) * 60000, fast: (b1 - b0) / (u1 - u0) * 60000, jump: b0 - a1, sound, playing, at: b0 };
+  })()`);
+  if (!(Math.abs(r.slow - 40) < 6)) problems.push(`slow part at ${r.slow.toFixed(1)} bpm, expected 40`);
+  if (!(r.fast > 90)) problems.push(`after dragging to 120 bpm it plays at ${r.fast.toFixed(1)} bpm`);
+  if (!(r.jump >= 0 && r.jump < 2)) problems.push(`position jumped by ${r.jump.toFixed(2)} beats`);
+  if (!r.playing) problems.push('stopped after the tempo change');
+  if (!(r.sound > 0.005)) problems.push(`silent after the tempo change (${JSON.stringify(r)})`);
+  if (w.errors.length) problems.push(`page error: ${w.errors[0]}`);
+  return problems.join('; ') || null;
+}
+
+// Start menu (index.html): a tile for each page, every link resolves, the version label is there, the
+// screen wake lock (pwa.js) is held
 async function runMenuCase(w) {
   const problems = [];
   const links = await w.ev(`[...document.querySelectorAll('.tile')].map(a => a.getAttribute('href')).join(' ')`);
@@ -580,6 +614,8 @@ async function runMenuCase(w) {
   const ok = await w.ev(`Promise.all([...document.querySelectorAll('.tile')].map(a => fetch(a.href).then(r => r.ok))).then(a => a.every(Boolean))`);
   if (!ok) problems.push('a menu link does not load');
   if (!/^V\d+$/.test(await w.ev(`document.getElementById('version').textContent`))) problems.push('no version label');
+  await sleep(300);
+  if (!(await w.ev(`window.__wakeLock && window.__wakeLock()`))) problems.push('the screen wake lock is not held');
   if (w.errors.length) problems.push(`page error: ${w.errors[0]}`);
   return problems.join('; ') || null;
 }

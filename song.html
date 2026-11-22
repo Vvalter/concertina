@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V24">
+<link rel="stylesheet" href="concertina.css?v=V25">
 <style>
   a.back { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
   .controls input[type=range] { width: 9em; accent-color: var(--accent); }
@@ -88,11 +88,11 @@
   <div class="status" id="status"></div>
 </main>
 
-<script src="concertina.js?v=V24"></script>
-<script src="pwa.js?v=V24"></script>
+<script src="concertina.js?v=V25"></script>
+<script src="pwa.js?v=V25"></script>
 <script>
 (() => {
-  const { SVG_NS, ACC, spell, label, toMidi, buildMaccann, sampleFor, loopCache, playNote } = Concertina;
+  const { SVG_NS, ACC, spell, label, toMidi, buildMaccann, sampleFor, loopCache, playNote, retimeNote, onTempoDrag } = Concertina;
   const $ = id => document.getElementById(id);
 
   // ---------- the song ----------
@@ -222,9 +222,24 @@
   };
 
   // ---------- playback ----------
-  let ctx = null, out = null, getLoop = null, voices = [], startTime = 0, startBeat = 0, rafId = 0, playing = false;
+  let ctx = null, out = null, getLoop = null, voices = [], startTime = 0, startBeat = 0, spb = 1, rafId = 0, playing = false;
   const tempoInput = $('tempo');
   const secPerBeat = () => 60 / Number(tempoInput.value);
+
+  // A note's start and end at the current tempo. Notes are slightly detached, so repeated notes are heard
+  // as separate notes
+  function noteSpan(n) {
+    const t = startTime + (n.beat - startBeat) * spb;
+    return [t, t + n.beats * spb - Math.min(0.08, n.beats * spb * 0.15)];
+  }
+  // The tempo changed while playing: carry on from the current beat at the new tempo
+  function retempo() {
+    if (!playing || !voices.length) return;
+    const now = ctx.currentTime;
+    if (now > startTime) { startBeat += (now - startTime) / spb; startTime = now; }
+    spb = secPerBeat();
+    for (const v of voices) v.node = retimeNote(ctx, v.node, ...noteSpan(v.n));
+  }
 
   async function play(from = 0) {
     stop();
@@ -253,15 +268,10 @@
     }
     if (!playing) return;
     $('status').textContent = '';
-    const spb = secPerBeat();
+    spb = secPerBeat();
     startBeat = todo[0].beat;
     startTime = ctx.currentTime + 0.1;
-    todo.forEach((n, k) => {
-      const t = startTime + (n.beat - startBeat) * spb;
-      // Notes are slightly detached, so repeated notes are heard as separate notes
-      const end = t + n.beats * spb - Math.min(0.08, n.beats * spb * 0.15);
-      voices.push(playNote(ctx, out, sounds[k].buffer, sounds[k].rate, t, end));
-    });
+    voices = todo.map((n, k) => ({ n, node: playNote(ctx, out, sounds[k].buffer, sounds[k].rate, ...noteSpan(n)) }));
     const tick = () => {
       if (!playing) return;
       const beatNow = startBeat + (ctx.currentTime - startTime) / spb;
@@ -278,7 +288,7 @@
   function stop() {
     playing = false;
     cancelAnimationFrame(rafId);
-    for (const { src, gain } of voices) {
+    for (const { node: { src, gain } } of voices) {
       gain.gain.cancelScheduledValues(ctx.currentTime);
       gain.gain.setTargetAtTime(0, ctx.currentTime, 0.02);
       try { src.stop(ctx.currentTime + 0.1); } catch { /* not started yet */ }
@@ -303,8 +313,10 @@
   tempoInput.addEventListener('input', showTempo);
   tempoInput.addEventListener('change', () => {
     try { localStorage.setItem('noteListener.songTempo', tempoInput.value); } catch { }
-    if (playing) play(currentIdx);  // continue at the new tempo
+    retempo();
   });
+  onTempoDrag(tempoInput, retempo);   // playing follows the slider while it moves
+  window.__beatNow = () => (playing && voices.length ? startBeat + (ctx.currentTime - startTime) / spb : null);   // for tests: the beat being played
 
   drawScore();
   addEventListener('resize', () => {

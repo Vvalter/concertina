@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V24">
+<link rel="stylesheet" href="concertina.css?v=V25">
 <style>
   a.back { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
   .controls input[type=range] { width: 9em; accent-color: var(--accent); }
@@ -98,11 +98,11 @@
   <div class="status" id="status"></div>
 </main>
 
-<script src="concertina.js?v=V24"></script>
-<script src="pwa.js?v=V24"></script>
+<script src="concertina.js?v=V25"></script>
+<script src="pwa.js?v=V25"></script>
 <script>
 (() => {
-  const { SVG_NS, ACC, spell, label, toMidi, buildMaccann, sampleFor, loopCache, playNote } = Concertina;
+  const { SVG_NS, ACC, spell, label, toMidi, buildMaccann, sampleFor, loopCache, playNote, retimeNote, onTempoDrag } = Concertina;
   const $ = id => document.getElementById(id);
 
   // ---------- the arrangement ----------
@@ -382,10 +382,11 @@
 
   // The bellows: one gain for both hands. Level per bar, a swell over each two-bar phrase, a short dip
   // where the bellows change direction (every two bars), and a 7 Hz shake in the SHAKE bars.
-  function scheduleBellows(bellows, shakeDepth, fromBeat, tl) {
+  // live: the tempo changed while playing, so carry on from the current levels instead of starting from 0
+  function scheduleBellows(bellows, shakeDepth, fromBeat, tl, live = false) {
     const g = bellows.gain, t0 = tl.time(fromBeat);
-    g.cancelScheduledValues(0);
-    g.setValueAtTime(0, t0 - 0.05);
+    if (live) { const v = g.value; g.cancelScheduledValues(t0); g.setValueAtTime(v, t0); }
+    else { g.cancelScheduledValues(0); g.setValueAtTime(0, t0 - 0.05); }
     for (let beat = fromBeat; beat <= totalBeats; beat += 0.125) {
       const bar = Math.min(BARS.length - 1, Math.floor(beat / BEATS));
       const f = (beat - bar * BEATS) / BEATS;
@@ -397,8 +398,8 @@
       g.linearRampToValueAtTime(level * swell * reversal * fadeOut, tl.time(beat));
     }
     const d = shakeDepth.gain;
-    d.cancelScheduledValues(0);
-    d.setValueAtTime(0, t0);
+    if (live) { const v = d.value; d.cancelScheduledValues(t0); d.setValueAtTime(v, t0); }
+    else { d.cancelScheduledValues(0); d.setValueAtTime(0, t0); }
     for (const bar of SHAKE) {
       if ((bar + 1) * BEATS <= fromBeat) continue;
       const a = tl.time(Math.max(fromBeat, bar * BEATS)), b = tl.time((bar + 1) * BEATS);
@@ -407,6 +408,25 @@
       d.setValueAtTime(0.45, b - 0.1);
       d.linearRampToValueAtTime(0, b);
     }
+  }
+
+  // A note's start and end on the current timeline: umpa beats bounce, held chords and the melody are legato
+  function noteSpan(e) {
+    const t = timeline.time(e.beat), full = timeline.time(e.beat + e.beats) - t;
+    const short = e.hand === 'left' && e.beats <= 1;
+    return [t, t + (short ? full * 0.55 : full - Math.min(0.06, full * 0.12))];
+  }
+  // The tempo changed while playing: a new timeline from the current beat, every note moved onto it
+  let scheduled = [], live = null;
+  function retempo() {
+    if (!playing || !timeline || !live) return;
+    const now = ctx.currentTime, beat = timeline.beat(now);
+    timeline = makeTimeline(beat, now);
+    for (const n of scheduled) {
+      const [t, end] = noteSpan(n.e);
+      n.nodes = n.nodes.map(x => { const y = retimeNote(ctx, x, t, end); if (y !== x) voices.push(y); return y; });
+    }
+    scheduleBellows(live.bellows, live.shakeDepth, beat, timeline, true);
   }
 
   async function play(fromBeat = 0) {
@@ -451,15 +471,14 @@
     timeline = makeTimeline(fromBeat, ctx.currentTime + 0.12);
     scheduleBellows(bellows, shakeDepth, fromBeat, timeline);
 
-    todo.forEach((e, k) => {
-      const t = timeline.time(e.beat), full = timeline.time(e.beat + e.beats) - t;
-      // Umpa beats bounce, held chords and the melody are legato, a chord's notes share the level
-      const short = e.hand === 'left' && e.beats <= 1;
-      const end = t + (short ? full * 0.55 : full - Math.min(0.06, full * 0.12));
-      const level = (e.hand === 'left' && e.midis.length === 1 && short ? 1.15 : 1) / Math.sqrt(e.midis.length);
-      sounds[k].forEach(s => voices.push(playNote(ctx, hands[e.hand], s.buffer, s.rate, t, end, level)));
+    scheduled = todo.map((e, k) => {
+      const [t, end] = noteSpan(e);
+      // A chord's notes share the level; single umpa beats a little louder
+      const level = (e.hand === 'left' && e.midis.length === 1 && e.beats <= 1 ? 1.15 : 1) / Math.sqrt(e.midis.length);
+      return { e, nodes: sounds[k].map(s => { const n = playNote(ctx, hands[e.hand], s.buffer, s.rate, t, end, level); voices.push(n); return n; }) };
     });
     voices.push({ src: shake, gain: bellows });
+    live = { bellows, shakeDepth };
 
     const tick = () => {
       if (!playing) return;
@@ -481,6 +500,8 @@
       try { src.stop(ctx.currentTime + 0.15); } catch { /* not started */ }
     }
     voices = [];
+    scheduled = [];
+    live = null;
     setPlayButtons(false);
   }
 
@@ -499,8 +520,10 @@
   tempoInput.addEventListener('input', showTempo);
   tempoInput.addEventListener('change', () => {
     try { localStorage.setItem('noteListener.duetTempo', tempoInput.value); } catch { }
-    if (playing) play(Math.floor(nowBeat));
+    retempo();
   });
+  onTempoDrag(tempoInput, retempo);   // playing follows the slider while it moves
+  window.__beatNow = () => (playing && timeline ? timeline.beat(ctx.currentTime) : null);   // for tests: the beat being played
 
   function setVersion(v) {
     if (playing) stop();

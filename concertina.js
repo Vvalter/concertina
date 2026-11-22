@@ -293,7 +293,39 @@
     src.connect(gain).connect(dest);
     src.start(t);
     src.stop(end + 0.05);
-    return { src, gain };
+    return { src, gain, dest, buffer, rate, level, t, end };
+  }
+
+  // Moves a note made by playNote to new times (the tempo changed while playing). A note that is sounding
+  // keeps sounding and gets a new end; one that hasn't started yet is replaced, since a source starts only
+  // once; one that has ended stays ended. Returns the note to keep.
+  function retimeNote(ctx, n, t, end) {
+    const now = ctx.currentTime;
+    if (n.end <= now) return n;
+    if (n.t > now + 0.005) {
+      n.gain.gain.cancelScheduledValues(0);
+      n.gain.gain.value = 0;
+      try { n.src.stop(); } catch { /* already stopped */ }
+      return end > now + 0.01 ? playNote(ctx, n.dest, n.buffer, n.rate, Math.max(t, now + 0.005), end, n.level) : n;
+    }
+    const g = n.gain.gain, stopAt = Math.max(end, now + 0.02), fade = Math.min(0.03, (stopAt - now) / 2);
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(n.level, now);
+    g.setValueAtTime(n.level, stopAt - fade);
+    g.linearRampToValueAtTime(0, stopAt);
+    n.src.stop(stopAt + 0.05);   // a second stop() replaces the first
+    n.end = stopAt;
+    return n;
+  }
+
+  // Calls fn while the tempo slider is being dragged, at most every 80 ms, so playback follows it live
+  function onTempoDrag(input, fn) {
+    let pending = false;
+    input.addEventListener('input', () => {
+      if (pending) return;
+      pending = true;
+      setTimeout(() => { pending = false; fn(); }, 80);
+    });
   }
 
   // ---------- printing ----------
@@ -332,6 +364,6 @@
   }
 
   window.Concertina = {
-    SVG_NS, LETTERS, ACC, spell, label, MACCANN, toMidi, buildMaccann, SAMPLE_FILES, sampleFor, makeLoop, loadLoop, loopCache, playNote, printScore,
+    SVG_NS, LETTERS, ACC, spell, label, MACCANN, toMidi, buildMaccann, SAMPLE_FILES, sampleFor, makeLoop, loadLoop, loopCache, playNote, retimeNote, onTempoDrag, printScore,
   };
 })();
