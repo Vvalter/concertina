@@ -59,9 +59,9 @@ button.start.listening { background: var(--bad); }
 }
 svg.maccann { width: 100%; height: auto; display: block; transition: opacity 0.3s; }
 svg.maccann.stale { opacity: 0.45; }
-.maccann .btn circle { fill: var(--panel); stroke: var(--muted); stroke-width: 2; }
+.maccann .btn circle { fill: var(--panel); stroke: var(--muted); stroke-width: 2.5; }
 .maccann .btn.accidental circle { fill: var(--line); }
-.maccann .btn text { fill: var(--ink); font: 600 17px system-ui, sans-serif; text-anchor: middle; dominant-baseline: central; }
+.maccann .btn text { fill: var(--ink); font: 700 22px system-ui, sans-serif; text-anchor: middle; dominant-baseline: central; }
 .maccann .btn.on circle { fill: var(--accent); stroke: var(--accent); }
 .maccann .btn.on text { fill: #fff; }
 .maccann .hand { fill: var(--muted); font: 600 20px system-ui, sans-serif; text-anchor: middle; }

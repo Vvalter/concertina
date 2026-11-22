@@ -77,7 +77,7 @@
       for (const [x, y, note] of MACCANN[hand]) {
         const midi = toMidi(note);
         const g = svgEl('g', { class: 'btn' + (note.length > 2 ? ' accidental' : '') });
-        svgEl('circle', { cx: X(x), cy: Y(y), r: 27 }, g);
+        svgEl('circle', { cx: X(x), cy: Y(y), r: 31 }, g);
         const t = svgEl('text', { x: X(x), y: Y(y) }, g);
         svgEl('title', {}, g);
         buttons.push({ midi, g, t, hand });

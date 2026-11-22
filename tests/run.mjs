@@ -550,6 +550,14 @@ async function runBackingCase(w) {
       mond: [...document.querySelectorAll('.score .ev')].find(g => g.textContent === 'Mond,').getBoundingClientRect().x }; })()`);
   if (pickup.first !== 'Gu- ter') problems.push(`score starts with ${pickup.first}`);
   if (Math.abs(pickup.chord - pickup.mond) > 12) problems.push(`first chord symbol not at "Mond" (${pickup.chord} vs ${pickup.mond})`);
+  // "Nur links": one staff (bass clef), only left-hand buttons light; back to both hands
+  await w.ev(`document.getElementById('showLeft').click(); true`);
+  const clefs = await w.ev(`[...document.querySelectorAll('.score > text.glyph')].map(t => t.textContent).filter(t => t === '𝄞' || t === '𝄢').join('')`);
+  if (clefs.includes('𝄞') || !clefs.includes('𝄢')) problems.push(`Nur links shows clefs ${clefs}`);
+  r = await run(3000);
+  if (r.lit.some(l => l.includes('R'))) problems.push(`Nur links lights right-hand buttons (${r.lit.join(' | ')})`);
+  if (!r.lit.some(l => l.includes('L'))) problems.push('Nur links lights nothing');
+  await w.ev(`const p = document.getElementById('play'); if (p.classList.contains('listening')) p.click(); document.getElementById('showBoth').click(); true`);
   // 0 bpm: tapping "Gu-" sounds one note and holds it; each Next goes one onset further
   await w.ev(`document.getElementById('leftOne').click(); const sop = document.querySelector('[data-voice=S]'); if (!sop.checked) sop.click(); const t = document.getElementById('tempo'); t.value = 0; t.dispatchEvent(new Event('change')); true`);
   const step = await w.ev(`(async () => {
