@@ -497,8 +497,8 @@ async function runDuetCase(w) {
   return problems.join('; ') || null;
 }
 
-// Chorale page (Guter Mond): default C major, plain version, the three accompanying voices in the left
-// hand. Chord symbols are C-major harmonies, no key signature; from "dir nicht folgen kann" the right hand
+// Chorale page (Guter Mond): default C major, plain version, the left hand plays only the bass; then the
+// three accompanying voices in the left hand. Chord symbols are C-major harmonies, no key signature; from "dir nicht folgen kann" the right hand
 // lights only the melody, the left hand alto, tenor and bass, and something sounds. Then the version with
 // passing notes and the alto in the right hand (at the end alto and melody share the C4 button).
 async function runBackingCase(w) {
@@ -519,7 +519,13 @@ async function runBackingCase(w) {
     }
     return { lit: [...seen], loud, playing: document.getElementById('play').classList.contains('listening'), status: document.getElementById('status').textContent };
   })()`);
+  // Default: the left hand plays only the bass
   let r = await run(7000);
+  if (!r.lit.includes('LC3 RE4')) problems.push(`one-voice left never lit: LC3 RE4 (saw ${r.lit.join(' | ')}; ${r.status})`);
+  if (r.lit.some(l => l.split(' ').filter(x => x[0] === 'L').length > 1)) problems.push('left hand plays more than the bass by default');
+  if (await w.ev(`document.getElementById('tempo').min`) !== '1') problems.push('tempo slider does not start at 1 bpm');
+  await w.ev(`document.getElementById('altLeft').click(); true`);
+  r = await run(7000);
   for (const want of ['LC3 LC4 LG3 RE4', 'LC3 LC4 LE3 RC4'])
     if (!r.lit.includes(want)) problems.push(`C plain never lit: ${want} (saw ${r.lit.join(' | ')}; ${r.status})`);
   if (r.lit.some(l => l.split(' ').filter(x => x[0] === 'R').length > 1)) problems.push('right hand plays more than the melody');

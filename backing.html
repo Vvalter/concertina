@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concertina.css?v=V20">
+<link rel="stylesheet" href="concertina.css?v=V21">
 <style>
   a.back { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
   .intro { color: var(--muted); font-size: 0.9rem; margin: 0; line-height: 1.45; }
@@ -73,11 +73,12 @@
         <button id="varMoving" aria-pressed="false" title="Gleiche Harmonien, Alt, Tenor und Bass mit Durchgangsachteln">Mit Durchgängen</button>
         <button id="varGrip" aria-pressed="false" title="Gleiche Harmonien, Griffe für die linke Hand optimiert">Griffig</button>
       </div>
-      <div class="seg" role="group" aria-label="Alt">
-        <button id="altLeft" aria-pressed="true" title="Rechte Hand nur die Melodie, links die dreistimmige Begleitung">Begleitung links</button>
+      <div class="seg" role="group" aria-label="Begleitung">
+        <button id="leftOne" aria-pressed="true" title="Rechte Hand die Melodie, linke Hand nur den Bass">Links einstimmig</button>
+        <button id="altLeft" aria-pressed="false" title="Rechte Hand nur die Melodie, links die dreistimmige Begleitung">Links dreistimmig</button>
         <button id="altRight" aria-pressed="false" title="Der Alt geht in die rechte Hand, wo sie den Ton hat">Alt rechts</button>
       </div>
-      <label>Tempo <input id="tempo" type="range" min="40" max="112" step="4" value="66">
+      <label>Tempo <input id="tempo" type="range" min="1" max="112" step="1" value="66">
         <span class="tempo-value" id="tempoValue">66 bpm</span></label>
       <button id="play" class="start" data-play>▶ Play</button>
       <button class="print-btn" data-print="270" title="Noten drucken oder als PDF speichern">🖨 Drucken</button>
@@ -93,13 +94,14 @@
   <p class="intro">
     Vierstimmiger Choralsatz in C-Dur: die rechte Hand spielt nur die Melodie (beginnt mit g'), darunter eine
     dreistimmige Begleitung – Alt, Tenor und Bass – im Choralstil, alle Stimmen gehen zusammen.
-    <b>Begleitung links</b>: alle drei Begleitstimmen in der linken Hand. <b>Alt rechts</b>: der Alt geht in die
+    <b>Links einstimmig</b> (Standard): die linke Hand spielt nur den Bass. <b>Links dreistimmig</b>: alle drei
+    Begleitstimmen in der linken Hand. <b>Alt rechts</b>: der Alt geht in die
     rechte Hand, wo sie den Ton hat. <b>Schlicht</b>: ein Akkord pro Schlag; <b>Mit Durchgängen</b>: dieselben
     Harmonien, die Begleitstimmen füllen mit Achteln; <b>Griffig</b>: dieselben Harmonien, die Dreiklänge der linken
     Hand so gewählt, dass sie auf dem Edeophone gut liegen – möglichst jeder Finger in seiner Reihe, kaum zwei Knöpfe
     mit Abstand in derselben Reihe, gehaltene Töne wo möglich. Unter „Es klingt“ wählst du, welche Stimmen die Seite
    spielt. Jede Notenzeile zeigt eine Hand; in der unteren haben Alt und Tenor den Hals nach oben, der Bass nach unten.
-    Takt 1 ist ein Vorspiel, „Gu-ter“ setzt in Takt 2 auf Schlag 4 ein.
+    Ohne Vorspiel und Auftakt: es beginnt direkt auf „Mond“.
   </p>
 
   <section class="card">
@@ -120,8 +122,8 @@
   <div class="status" id="status"></div>
 </main>
 
-<script src="concertina.js?v=V20"></script>
-<script src="pwa.js?v=V20"></script>
+<script src="concertina.js?v=V21"></script>
+<script src="pwa.js?v=V21"></script>
 <script>
 (() => {
   const { SVG_NS, ACC, label, toMidi, buildMaccann, sampleFor, loopCache, playNote, spell } = Concertina;
@@ -132,8 +134,6 @@
   // Ranges (written): soprano C4–A4, alto B3–F4, tenor E3–C4, bass C3–G3 (the left hand's lowest button is C3).
   // Melody: liederkiste.com, "Volksweise seit Anfang des 19. Jahrhunderts", transposed from G.
   const SOPRANO = [
-    'r:4',
-    'r:2 r:1 G4:0.5:Gu- F4:0.5:ter',
     'E4:1:Mond, E4:1:du E4:0.5:gehst F4:0.5 G4:0.5:so A4:0.5',
     'G4:0.5:stil- F4:0.5 D4:1:le r:1 G4:0.5:durch F4:0.5:die',
     'E4:1:A- E4:1:bend- D4:0.5:wol- C4:0.5 D4:0.5:ken E4:0.5',
@@ -158,8 +158,6 @@
     const P2 = ['C4:1 D4:3', 'A3:1 B3:3', 'D3:1 G3:3'];
     const P3 = ['C4:2 B3:2', 'G3:1 E3:1 G3:1 F3:1', 'C3:2 D3:2'];
     return [
-      ['E4:1 F4:1 D4:1 E4:1', 'G3:1 A3:1 B3:1 C4:1', 'C3:1 F3:1 G3:1 C3:1'],   // intro: C F G C
-      ['E4:2 E4:1 D4:1', 'C4:2 C4:1 B3:1', 'C3:2 E3:1 G3:1'],
       P1, P2, P3,
       ['C4:3 B3:1', 'E3:2 G3:2', 'C3:2 E3:1 D3:1'],
       P1, P2, P3,
@@ -178,8 +176,6 @@
     const P2 = ['C4:1 D4:3', 'A3:1 B3:1 C4:0.5 B3:0.5 B3:1', 'D3:1 G3:1 F3:0.5 D3:0.5 G3:1'];
     const P3 = ['C4:2 B3:2', 'G3:1 E3:1 G3:1 F3:1', 'C3:0.5 E3:0.5 C3:1 D3:2'];
     return [
-      ['E4:1 F4:0.5 E4:0.5 D4:1 E4:1', 'G3:1 A3:0.5 G3:0.5 B3:1 C4:1', 'C3:1 F3:1 G3:1 C3:1'],
-      ['E4:1 F4:0.5 E4:0.5 E4:1 D4:1', 'C4:1 B3:0.5 A3:0.5 G3:1 B3:1', 'C3:2 E3:0.5 F3:0.5 G3:1'],
       P1, P2, P3,
       ['C4:2 C4:0.5 D4:0.5 B3:1', 'E3:1 F3:0.5 G3:0.5 G3:2', 'C3:1.5 D3:0.5 E3:1 D3:1'],
       P1, P2, P3,
@@ -194,12 +190,10 @@
   })();
   // Optimised for the left hand's grips (alto, tenor and bass all in the left hand): generated by
   // tools/grips.mjs from HARMONY and the Edeophone layout. Few grips with two buttons in one column with a
-  // button between them (25 beats in PLAIN, 2 here), within four columns, little vertical stretch, held
+  // button between them (20 beats in PLAIN, 1 here), within four columns, little vertical stretch, held
   // notes where possible; the alto may go down to G3. Re-run the tool after changing HARMONY or SOPRANO.
   const GRIFFIG = [
-    ['G3:1 F4:1 D4:1 E4:1', 'E3:1 A3:1 B3:1 G3:1', 'C3:1 F3:1 G3:1 C3:1'],
-    ['E4:2 C4:1 F4:1', 'G3:3 B3:1', 'C3:2 E3:1 G3:1'],
-    ['G3:1 C4:3', 'E3:1 G3:1 A3:2', 'C3:1 E3:2 F3:1'],
+    ['E4:1 C4:3', 'G3:2 A3:2', 'C3:1 E3:2 F3:1'],
     ['C4:1 D4:2 F4:1', 'F3:1 B3:3', 'D3:1 G3:3'],
     ['G3:2 B3:2', 'E3:2 G3:1 F3:1', 'C3:2 D3:2'],
     ['G3:2 C4:1 B3:1', 'E3:2 G3:2', 'C3:2 E3:1 D3:1'],
@@ -219,11 +213,11 @@
   const VARIANTS = { plain: PLAIN, moving: MOVING, griffig: GRIFFIG };
   // Chord symbols (written in C; shown in C♯), one per beat ('-' = none) or one per bar
   const HARMONY = [
-    'C F G C', 'C - C/E G7', 'C C/E Am/E F', 'Dm7 G - G7', 'C - G/D G7/D', 'C - C/E G/D',
+    'C C/E Am/E F', 'Dm7 G - G7', 'C - G/D G7/D', 'C - C/E G/D',
     'C C/E Am/E F', 'Dm7 G - G7', 'C - G/D G7/D', 'C - Am/E G/D', 'Dm7 G/D G -', 'C C/E Am/E C',
     'F Dm Am/C G7', 'C G/D G -', 'C C/E Am/E F', 'Dm7 G - G7', 'C - G/D G7/D', 'C',
   ];
-  const SECTIONS = { 0: 'Vorspiel', 1: 'Strophe' };
+  const SECTIONS = { 0: 'Strophe' };
   const BEATS = 4;
   const harmony = HARMONY.flatMap((h, bar) => {
     const names = h.split(' ');
@@ -237,7 +231,7 @@
   // ---------- settings ----------
   const store = (k, v) => { try { localStorage.setItem('noteListener.choral.' + k, JSON.stringify(v)); } catch { } };
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem('noteListener.choral.' + k)); return v ?? d; } catch { return d; } };
-  let variant = load('variant', 'plain'), altHand = load('altHand', 'left');
+  let variant = load('variant', 'plain'), altHand = load('hand', 'one');   // one: left hand plays only the bass
   const audible = load('voices', { S: false, A: true, T: true, B: true });
 
   let events = [], onsets = [];   // { voice, hand, bar, beat, beats, notes (spelling), midis, syllable }
@@ -247,6 +241,7 @@
     SOPRANO.forEach((s, bar) => {
       const [a, t, b] = bars[bar];
       for (const [voice, line] of [['S', s], ['A', a], ['T', t], ['B', b]]) {
+        if (altHand === 'one' && (voice === 'A' || voice === 'T')) continue;
         const wanted = voice === 'S' || (voice === 'A' && altHand === 'right') ? 'right' : 'left';
         let beat = bar * BEATS;
         for (const tok of line.trim().split(/\s+/)) {
@@ -343,7 +338,7 @@
     g.addEventListener('click', () => play(e.beat));
     if (!e.midis.length) {
       // Rests of the upper voice sit high, of the lower voice low
-      const shared = !(e.voice === 'S' && altHand === 'left');
+      const shared = !(e.voice === 'S' && altHand !== 'right');
       svgEl('text', { class: 'glyph rest', x: x - 6, y: bottom - REST_Y[e.beats] * S - (shared ? (up ? 2 * S : -S) : 0), 'font-size': 4 * S }, g, RESTS[e.beats]);
       return;
     }
@@ -362,7 +357,7 @@
         svgEl('path', { class: 'flag', d: `M${sx} ${y2} q 2 ${8 * d} 9 ${12 * d} q 3 ${5 * d} -1 ${11 * d}` }, g);
       }
     }
-    if (e.syllable) svgEl('text', { class: 'lyric', x, y: bottom + (altHand === 'left' ? 3.4 : 6.4) * S }, g, e.syllable);
+    if (e.syllable) svgEl('text', { class: 'lyric', x, y: bottom + (altHand === 'right' ? 6.4 : 3.4) * S }, g, e.syllable);
   }
 
   function markMuted() {
@@ -559,12 +554,13 @@
   function setChoice(kind, value) {
     if (playing) stop();
     if (kind === 'variant') variant = value; else altHand = value;
-    store(kind, value);
+    store(kind === 'variant' ? kind : 'hand', value);
     $('varPlain').setAttribute('aria-pressed', String(variant === 'plain'));
     $('varMoving').setAttribute('aria-pressed', String(variant === 'moving'));
     $('varGrip').setAttribute('aria-pressed', String(variant === 'griffig'));
     $('altRight').setAttribute('aria-pressed', String(altHand === 'right'));
     $('altLeft').setAttribute('aria-pressed', String(altHand === 'left'));
+    $('leftOne').setAttribute('aria-pressed', String(altHand === 'one'));
     buildEvents();
     nowKey = '';
     drawScore();
@@ -574,6 +570,7 @@
   $('varGrip').onclick = () => setChoice('variant', 'griffig');
   $('altRight').onclick = () => setChoice('altHand', 'right');
   $('altLeft').onclick = () => setChoice('altHand', 'left');
+  $('leftOne').onclick = () => setChoice('altHand', 'one');
   for (const box of document.querySelectorAll('[data-voice]')) {
     const v = box.dataset.voice;
     box.checked = !!audible[v];
